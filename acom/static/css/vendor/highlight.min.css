@@ -1,0 +1,6 @@
+/* Minimal styles placeholder */
+pre code { display: block; padding: 0.5em; background: #f7f7f7; }
+.hljs-keyword { color: #0066cc; font-weight: bold; }
+.hljs-string { color: #22863a; }
+.hljs-number { color: #b31d28; }
+.hljs-comment { color: #6a737d; font-style: italic; }

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blinkist — UI Mock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0e1115;
+      --card: #151a21;
+      --muted: #8b96a6;
+      --text: #e6eaf0;
+      --accent: #2dd4bf;
+      --accent-2: #60a5fa;
+      --border: #273244;
+      --chip: #1f2630;
+    }
+    * { box-sizing: border-box }
+    html, body { height: 100% }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .app { display: grid; grid-template-rows: auto auto 1fr auto; min-height: 100vh }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .brand { font-weight: 700; letter-spacing: 0.3px }
+    .top-actions { display: flex; gap: 8px }
+    .icon-btn {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    .icon-btn:disabled, .disabled { opacity: .6; cursor: default }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 8px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 52px;
+      z-index: 19;
+      background: var(--bg);
+    }
+    .tab {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--chip);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab.active { background: var(--accent); color: #081016; border-color: transparent }
+    .views { padding: 16px }
+    .view { display: none }
+    .view.active { display: block }
+    .feed-header { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 8px }
+    .feed-header h1, .feed-header h2 { margin: 0; font-weight: 700 }
+    .link-btn {
+      color: var(--accent-2);
+      background: transparent;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .carousel {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 220px;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .cover-sm {
+      height: 110px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1f2937, #0ea5e9);
+    }
+    .card-title { font-weight: 700 }
+    .card-meta { color: var(--muted); font-size: 13px }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .categories { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px }
+    .chip {
+      background: var(--chip);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .chip.active { background: var(--accent); color: #081016; border-color: transparent }
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+    }
+    .search-filters { display: flex; gap: 8px; margin-bottom: 12px }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .section { margin-top: 16px }
+    .highlights-list { display: grid; gap: 10px }
+    .highlight-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .spaces-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px }
+    .spaces-list { display: grid; gap: 12px }
+    .space-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+    .space-title { font-weight: 700 }
+    .space-meta { color: var(--muted) }
+    .space-actions { display: flex; gap: 8px }
+    .primary {
+      background: var(--accent);
+      color: #081016;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .secondary {
+      background: var(--chip);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal.hidden, .overlay.hidden, .player.hidden { display: none }
+    .modal { position: fixed; inset: 0; display: grid; place-items: end; z-index: 40 }
+    .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.5) }
+    .modal-sheet {
+      position: relative;
+      width: 100%;
+      max-height: 88vh;
+      background: var(--card);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    .modal-header {
+      display: grid;
+      grid-template-columns: 110px 1fr auto;
+      gap: 14px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cover { width: 110px; height: 110px; border-radius: 12px; background: linear-gradient(135deg, #1f2937, #22d3ee) }
+    .title-group { display: grid; gap: 6px }
+    .title { font-weight: 700; font-size: 18px }
+    .subtitle { color: var(--muted) }
+    .tags { display: flex; gap: 8px; flex-wrap: wrap }
+    .modal-body { padding: 14px; display: grid; gap: 14px }
+    .description { color: var(--muted); line-height: 1.6 }
+    .primary-actions, .secondary-actions { display: flex; gap: 8px; flex-wrap: wrap }
+    .overlay { position: fixed; inset: 0; display: grid; grid-template-rows: auto auto 1fr; background: var(--bg); z-index: 50 }
+    .overlay-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border) }
+    .overlay-title { font-weight: 700 }
+    .reader-toolbar { padding: 8px 16px; border-bottom: 1px solid var(--border) }
+    .reader-actions { display: flex; gap: 8px }
+    .reader-content { padding: 16px; display: grid; gap: 14px; line-height: 1.7 }
+    .player {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      z-index: 45;
+    }
+    .player-left { display: flex; align-items: center; gap: 8px }
+    .player-center { display: flex; align-items: center; gap: 6px; justify-content: center }
+    .player-right { display: flex; justify-content: end }
+    .player-title { font-weight: 700 }
+    .speed { display: flex; gap: 6px }
+    .profile-card {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .avatar { font-size: 28px }
+    .profile-info { display: grid }
+    .name { font-weight: 700 }
+    .meta { color: var(--muted) }
+    .settings { display: grid; gap: 12px }
+    .setting { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: grid; gap: 10px }
+    .setting-title { font-weight: 700 }
+    .segmented { display: flex; gap: 8px }
+    .segment {
+      background: var(--chip);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .segment.active { background: var(--accent); color: #081016; border-color: transparent }
+    @media (min-width: 900px) {
+      .views { max-width: 1100px; margin: 0 auto }
+      .tabs { top: 58px }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">Blinkist</div>
+      <div class="top-actions">
+        <button class="icon-btn" data-tab="search" aria-label="Search">
+          <span class="icon">🔍</span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="discover" role="tab" aria-selected="true">Discover</button>
+      <button class="tab" data-tab="search" role="tab" aria-selected="false">Search</button>
+      <button class="tab" data-tab="library" role="tab" aria-selected="false">Library</button>
+      <button class="tab" data-tab="spaces" role="tab" aria-selected="false">Spaces</button>
+      <button class="tab" data-tab="profile" role="tab" aria-selected="false">Profile</button>
+    </nav>
+
+    <main class="views">
+      <section id="discover" class="view active" aria-label="Discover">
+        <div class="feed-header">
+          <h1>For You</h1>
+        </div>
+        <div class="carousel" data-section="for-you"></div>
+
+        <div class="feed-header">
+          <h2>Trending</h2>
+          <button class="link-btn" data-action="more" data-section="trending">More</button>
+        </div>
+        <div class="carousel" data-section="trending"></div>
+
+        <div class="feed-header">
+          <h2>New</h2>
+          <button class="link-btn" data-action="more" data-section="new">More</button>
+        </div>
+        <div class="carousel" data-section="new"></div>
+
+        <div class="feed-header">
+          <h2>Categories</h2>
+        </div>
+        <div class="categories">
+          <button class="chip">Productivity</button>
+          <button class="chip">Psychology</button>
+          <button class="chip">Leadership</button>
+          <button class="chip">Health</button>
+          <button class="chip">Finance</button>
+          <button class="chip">Creativity</button>
+        </div>
+      </section>
+
+      <section id="search" class="view" aria-label="Search">
+        <div class="search-bar">
+          <span class="icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search by title, author, or keyword">
+        </div>
+        <div class="search-filters">
+          <button class="filter active" data-filter="all">All</button>
+          <button class="filter" data-filter="blink">Blinks</button>
+          <button class="filter" data-filter="shortcast">Shortcasts</button>
+        </div>
+        <div id="searchResults" class="grid"></div>
+      </section>
+
+      <section id="library" class="view" aria-label="Library">
+        <div class="section">
+          <h2>Saved</h2>
+          <div class="grid" id="savedGrid"></div>
+        </div>
+        <div class="section">
+          <h2>Downloads</h2>
+          <div class="grid" id="downloadsGrid"></div>
+        </div>
+        <div class="section">
+          <h2>Highlights</h2>
+          <div class="highlights-list" id="highlightsList"></div>
+        </div>
+      </section>
+
+      <section id="spaces" class="view" aria-label="Spaces">
+        <div class="spaces-header">
+          <h2>Your Spaces</h2>
+          <button class="primary disabled">Create Space</button>
+        </div>
+        <div class="spaces-list">
+          <div class="space-card">
+            <div class="space-title">Team Learning</div>
+            <div class="space-meta">12 items • 5 members</div>
+            <div class="space-actions">
+              <button class="secondary">Open</button>
+              <button class="secondary disabled">Invite</button>
+            </div>
+          </div>
+          <div class="space-card">
+            <div class="space-title">Book Club</div>
+            <div class="space-meta">8 items • 4 members</div>
+            <div class="space-actions">
+              <button class="secondary">Open</button>
+              <button class="secondary disabled">Invite</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="profile" class="view" aria-label="Profile">
+        <div class="profile-card">
+          <div class="avatar">🧑‍💼</div>
+          <div class="profile-info">
+            <div class="name">Alex Johnson</div>
+            <div class="meta">Learner • Since 2022</div>
+          </div>
+        </div>
+        <div class="settings">
+          <div class="setting">
+            <div class="setting-title">Playback Speed</div>
+            <div class="speed-controls">
+              <button class="chip" data-speed="1.0">1.0x</button>
+              <button class="chip" data-speed="1.25">1.25x</button>
+              <button class="chip active" data-speed="1.5">1.5x</button>
+            </div>
+          </div>
+          <div class="setting">
+            <div class="setting-title">Theme</div>
+            <div class="segmented">
+              <button class="segment active">Light</button>
+              <button class="segment">Dark</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <div class="cover"></div>
+          <div class="title-group">
+            <div class="title" id="detailTitle"></div>
+            <div class="subtitle" id="detailSubtitle"></div>
+            <div class="tags" id="detailTags"></div>
+          </div>
+          <button class="icon-btn" id="detailClose" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="description" id="detailDescription"></div>
+          <div class="primary-actions">
+            <button class="primary" id="readBtn">Read</button>
+            <button class="primary" id="listenBtn">Listen</button>
+          </div>
+          <div class="secondary-actions">
+            <button class="secondary">Download Audio</button>
+            <button class="secondary">Add to Space</button>
+            <button class="secondary">Save</button>
+            <button class="secondary">Share</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="readerOverlay" class="overlay hidden">
+      <div class="overlay-header">
+        <div class="overlay-title" id="readerTitle"></div>
+        <div class="overlay-actions">
+          <button class="icon-btn" id="readerClose" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="reader-toolbar">
+        <div class="reader-actions">
+          <button class="chip">Highlight</button>
+          <button class="chip">Add Note</button>
+          <button class="chip">Save</button>
+        </div>
+      </div>
+      <div class="reader-content">
+        <p>Big ideas distilled for fast learning. This Blink presents the core insights in clear, short sections designed to be read in about 15 minutes.</p>
+        <p>Key insight one explains the main concept with a short, concise paragraph. It emphasizes practical understanding over exhaustive detail.</p>
+        <p>Key insight two provides a takeaway and a simple example, keeping the reading experience focused and distraction-free.</p>
+        <p>Key insight three ties ideas together and suggests how to apply them, supporting quick retention and action.</p>
+      </div>
+    </div>
+
+    <footer id="playerBar" class="player hidden" aria-label="Audio Player">
+      <div class="player-left">
+        <div class="player-title" id="playerTitle">Shortcast</div>
+      </div>
+      <div class="player-center">
+        <button class="icon-btn">⏮</button>
+        <button class="icon-btn">▶</button>
+        <button class="icon-btn">⏭</button>
+      </div>
+      <div class="player-right">
+        <div class="speed">
+          <button class="chip" data-speed="1.0">1.0x</button>
+          <button class="chip" data-speed="1.25">1.25x</button>
+          <button class="chip active" data-speed="1.5">1.5x</button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const views = document.querySelectorAll('.view');
+    const searchBtn = document.querySelector('.top-actions .icon-btn');
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const filters = document.querySelectorAll('.filter');
+    const detailModal = document.getElementById('detailModal');
+    const detailClose = document.getElementById('detailClose');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailSubtitle = document.getElementById('detailSubtitle');
+    const detailTags = document.getElementById('detailTags');
+    const detailDescription = document.getElementById('detailDescription');
+    const readBtn = document.getElementById('readBtn');
+    const listenBtn = document.getElementById('listenBtn');
+    const playerBar = document.getElementById('playerBar');
+    const playerTitle = document.getElementById('playerTitle');
+    const readerOverlay = document.getElementById('readerOverlay');
+    const readerClose = document.getElementById('readerClose');
+    const readerTitle = document.getElementById('readerTitle');
+    const savedGrid = document.getElementById('savedGrid');
+    const downloadsGrid = document.getElementById('downloadsGrid');
+    const highlightsList = document.getElementById('highlightsList');
+
+    const content = [
+      { id: 'c1', title: 'Deep Work', author: 'Cal Newport', type: 'Blink', section: 'for-you', audio: true, category: 'Productivity', description: 'Focus without distraction for optimal results.' },
+      { id: 'c2', title: 'Atomic Habits', author: 'James Clear', type: 'Blink', section: 'for-you', audio: true, category: 'Psychology', description: 'Build better habits with small changes.' },
+      { id: 'c3', title: 'Think Again', author: 'Adam Grant', type: 'Blink', section: 'trending', audio: true, category: 'Psychology', description: 'Learn to question and rethink assumptions.' },
+      { id: 'c4', title: 'The Daily Stoic', author: 'Holiday & Hanselman', type: 'Shortcast', section: 'trending', audio: true, category: 'Philosophy', description: 'Condensed stoic wisdom for modern life.' },
+      { id: 'c5', title: 'Designing Your Life', author: 'Burnett & Evans', type: 'Blink', section: 'new', audio: false, category: 'Creativity', description: 'Use design thinking to shape your career.' },
+      { id: 'c6', title: 'The Psychology of Money', author: 'Morgan Housel', type: 'Blink', section: 'new', audio: true, category: 'Finance', description: 'Timeless lessons on wealth and happiness.' }
+    ];
+
+    const renderCard = item => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.dataset.id = item.id;
+      el.innerHTML = `
+        <div class="cover-sm"></div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-meta">${item.author}</div>
+        <div class="pill">${item.type}${item.audio ? ' • Audio' : ''}</div>
+      `;
+      el.addEventListener('click', () => openDetail(item));
+      return el;
+    };
+
+    const populateCarousels = () => {
+      document.querySelectorAll('.carousel').forEach(car => {
+        const section = car.dataset.section;
+        const items = content.filter(c => c.section === section);
+        items.forEach(i => car.appendChild(renderCard(i)));
+      });
+    };
+
+    const showTab = id => {
+      tabs.forEach(t => {
+        const active = t.dataset.tab === id;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      views.forEach(v => v.classList.toggle('active', v.id === id));
+    };
+
+    tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+    if (searchBtn) searchBtn.addEventListener('click', () => showTab('search'));
+
+    const openDetail = item => {
+      detailTitle.textContent = item.title;
+      detailSubtitle.textContent = item.author;
+      detailTags.innerHTML = '';
+      const t1 = document.createElement('span');
+      t1.className = 'pill';
+      t1.textContent = item.type;
+      detailTags.appendChild(t1);
+      const t2 = document.createElement('span');
+      t2.className = 'pill';
+      t2.textContent = item.audio ? 'Audio available' : 'Text only';
+      detailTags.appendChild(t2);
+      detailDescription.textContent = item.description;
+      readBtn.onclick = () => openReader(item);
+      listenBtn.onclick = () => openPlayer(item);
+      detailModal.classList.remove('hidden');
+    };
+
+    const closeDetail = () => detailModal.classList.add('hidden');
+    detailClose.addEventListener('click', closeDetail);
+    detailModal.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-backdrop')) closeDetail();
+    });
+
+    const openReader = item => {
+      readerTitle.textContent = item.title;
+      readerOverlay.classList.remove('hidden');
+      closeDetail();
+    };
+    const closeReader = () => readerOverlay.classList.add('hidden');
+    readerClose.addEventListener('click', closeReader);
+
+    const openPlayer = item => {
+      playerTitle.textContent = item.title;
+      playerBar.classList.remove('hidden');
+    };
+
+    const renderGridItem = item => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `
+        <div class="cover-sm"></div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-meta">${item.author}</div>
+        <div class="pill">${item.type}${item.audio ? ' • Audio' : ''}</div>
+      `;
+      el.addEventListener('click', () => openDetail(item));
+      return el;
+    };
+
+    const renderLibrary = () => {
+      savedGrid.innerHTML = '';
+      downloadsGrid.innerHTML = '';
+      highlightsList.innerHTML = '';
+      content.slice(0, 4).forEach(i => savedGrid.appendChild(renderGridItem(i)));
+      content.filter(i => i.audio).slice(0, 3).forEach(i => downloadsGrid.appendChild(renderGridItem(i)));
+      const sampleHighlights = [
+        { title: 'Atomic Habits', text: 'Small changes compound into remarkable results.' },
+        { title: 'Deep Work', text: 'Focus is a superpower in a distracted world.' }
+      ];
+      sampleHighlights.forEach(h => {
+        const el = document.createElement('div');
+        el.className = 'highlight-item';
+        el.innerHTML = `
+          <div class="card-title">${h.title}</div>
+          <div class="card-meta">${h.text}</div>
+        `;
+        highlightsList.appendChild(el);
+      });
+    };
+
+    const runSearch = () => {
+      const q = (searchInput?.value || '').toLowerCase();
+      const activeFilterBtn = document.querySelector('.filter.active');
+      const f = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+      const items = content.filter(i => {
+        const match = i.title.toLowerCase().includes(q) || i.author.toLowerCase().includes(q);
+        const typeMatch = f === 'all' || (f === 'blink' && i.type === 'Blink') || (f === 'shortcast' && i.type === 'Shortcast');
+        return match && typeMatch;
+      });
+      if (searchResults) {
+        searchResults.innerHTML = '';
+        items.forEach(i => searchResults.appendChild(renderGridItem(i)));
+      }
+    };
+
+    filters.forEach(f => f.addEventListener('click', () => {
+      filters.forEach(x => x.classList.remove('active'));
+      f.classList.add('active');
+      runSearch();
+    }));
+    if (searchInput) searchInput.addEventListener('input', runSearch);
+
+    // Init
+    populateCarousels();
+    renderLibrary();
+  </script>
+</body>
+</html>

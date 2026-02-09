@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACOM Local Option</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="wrap">
+      <div class="brand">{{ project_name }}</div>
+      <nav class="nav">
+        <a class="nav-link" href="#">Local</a>
+        <a class="nav-link" href="../option-website-only/index.html">Website‑Only</a>
+      </nav>
+    </div>
+  </header>
+  <div class="container">
+    <section class="hero">
+      <div class="hero-title">{{ project_name }} Local Setup</div>
+      <div class="hero-sub">Download, unzip, install, run. Share over LAN with a short PIN.</div>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/download">Download ZIP</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <div class="card-title">Setup Steps</div>
+        <ol class="steps">
+          <li>Unzip the downloaded archive.</li>
+          <li>Open a terminal in the unzipped folder.</li>
+          <li>Install dependencies: <span class="code">pip install -r requirements.txt</span></li>
+          <li>Start locally: <span class="code">python start.py</span></li>
+          <li>Open the printed Dashboard URL on your devices on the same Wi‑Fi.</li>
+          <li>Set a short PIN via “Set PIN”, share the URL and PIN to unlock on the second device.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Why Local</div>
+        <ul class="list">
+          <li>No cloud traffic</li>
+          <li>LAN‑speed transfers</li>
+          <li>PIN unlock for guests</li>
+          <li>ZIP downloads for large folders</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

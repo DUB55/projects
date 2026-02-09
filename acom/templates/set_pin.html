@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set Quick PIN</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Set Quick Unlock PIN</h1>
+    <form method="post" action="/set_pin">
+      <input type="tel" name="pin" placeholder="Enter PIN (digits)" pattern="[0-9]*" inputmode="numeric" required>
+      <button type="submit">Save PIN</button>
+    </form>
+    <p>After setting a PIN, the login page will let you unlock with the PIN instead of the password.</p>
+  </div>
+ </body>
+</html>

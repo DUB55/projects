@@ -1,0 +1,12 @@
+{
+  "active_profile": "default",
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Default Profile",
+      "description": "Your main browser profile",
+      "icon_color": "#0078D4",
+      "is_default": true
+    }
+  ]
+}

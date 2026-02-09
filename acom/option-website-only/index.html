@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACOM Website‑Only (WebRTC)</title>
+  <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>ACOM Website‑Only</h1>
+    <p>Peer‑to‑peer sharing using WebRTC DataChannel. Works without a backend by manually exchanging Offer/Answer text.</p>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-host" onclick="setTab('host')">Host</button>
+      <button class="tab" id="tab-guest" onclick="setTab('guest')">Guest</button>
+    </div>
+
+    <section id="host-panel" class="panel">
+      <h2>Host <span id="host-status" class="badge info">idle</span></h2>
+      <div class="row">
+        <button class="btn" onclick="startHost()">Start Session</button>
+        <div id="host-code" class="code-badge"></div>
+      </div>
+      <div class="row">
+        <label>Send Text</label>
+        <input id="host-text" type="text" placeholder="Message">
+        <button class="btn" onclick="sendText('host')">Send</button>
+      </div>
+      <div class="row">
+        <label>Send File</label>
+        <input id="host-file" type="file">
+        <button class="btn" onclick="sendFile('host')">Send File</button>
+      </div>
+      <div class="progress"><div id="host-progress-bar" class="bar"></div></div>
+      <div class="log" id="host-log"></div>
+    </section>
+
+    <section id="guest-panel" class="panel hidden">
+      <h2>Guest <span id="guest-status" class="badge info">idle</span></h2>
+      <div class="row">
+        <label>Enter PIN</label>
+        <input id="guest-pin" type="text" placeholder="6 digits">
+        <button class="btn" onclick="startGuest()">Connect</button>
+      </div>
+      <div class="row">
+        <label>Send Text</label>
+        <input id="guest-text" type="text" placeholder="Message">
+        <button class="btn" onclick="sendText('guest')">Send</button>
+      </div>
+      <div class="row">
+        <label>Send File</label>
+        <input id="guest-file" type="file">
+        <button class="btn" onclick="sendFile('guest')">Send File</button>
+      </div>
+      <div class="progress"><div id="guest-progress-bar" class="bar"></div></div>
+      <div class="log" id="guest-log"></div>
+    </section>
+
+    <div class="note">
+      <p>Tip: To avoid manual copying, deploy a simple signaling server and swap the Offer/Answer using a short code. Pure browser‑only mode uses manual exchange.</p>
+    </div>
+  </div>
+
+  <script src="static/js/webrtc.js"></script>
+</body>
+</html>

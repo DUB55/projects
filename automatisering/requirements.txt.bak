@@ -1,0 +1,10 @@
+# requirements.txt
+PyQt6==6.5.0
+playwright==1.35.0
+keyring==24.2.0
+pydantic==2.0.0
+rich==13.5.2
+python-dotenv==1.0.0
+shortuuid==1.0.11
+pillow==10.0.0
+jsonschema==4.19.0

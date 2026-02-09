@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>QuizSphere - Professional Interactive Learning</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                        "slate-custom": "#232f48",
+                        "border-custom": "#324467"
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+        .hero-pattern {
+            background-color: #101622;
+            background-image: radial-gradient(#135bec15 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .glass-nav {
+            backdrop-filter: blur(12px);
+            background-color: rgba(16, 22, 34, 0.8);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white transition-colors duration-300">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 glass-nav border-b border-border-custom/30">
+<div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="text-primary">
+<span class="material-symbols-outlined text-4xl">school</span>
+</div>
+<h2 class="text-2xl font-extrabold tracking-tight">QuizSphere</h2>
+</div>
+<nav class="hidden md:flex items-center gap-10">
+<a class="text-sm font-medium hover:text-primary transition-colors uppercase tracking-widest" href="#">Features</a>
+<a class="text-sm font-medium hover:text-primary transition-colors uppercase tracking-widest" href="#">Pricing</a>
+<a class="text-sm font-medium hover:text-primary transition-colors uppercase tracking-widest" href="#">About</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="px-6 py-2 text-sm font-bold border border-border-custom rounded-lg hover:bg-slate-custom transition-all">
+                    Log In
+                </button>
+<button class="px-6 py-2 text-sm font-bold bg-primary text-white rounded-lg hover:brightness-110 transition-all shadow-lg shadow-primary/20">
+                    Sign Up
+                </button>
+</div>
+</div>
+</header>
+<main class="pt-20">
+<!-- Hero Section -->
+<section class="relative min-h-[85vh] flex items-center justify-center overflow-hidden hero-pattern">
+<!-- Decorative Elements -->
+<div class="absolute top-20 left-10 w-64 h-64 bg-primary/10 rounded-full blur-[100px]"></div>
+<div class="absolute bottom-10 right-10 w-96 h-96 bg-primary/5 rounded-full blur-[120px]"></div>
+<div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
+<div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold tracking-[0.2em] uppercase mb-8">
+<span class="material-symbols-outlined text-sm">verified</span>
+                    The Gold Standard in Education
+                </div>
+<h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter mb-6 leading-[1.1]">
+                    QuizSphere
+                </h1>
+<p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto font-light leading-relaxed mb-12">
+                    Elevate classroom engagement with the next generation of interactive learning. 
+                    Sophisticated tools designed for modern educators.
+                </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+<button class="group flex items-center gap-3 min-w-[220px] justify-center px-8 py-5 bg-primary text-white rounded-xl font-bold text-lg hover:translate-y-[-2px] transition-all shadow-xl shadow-primary/25">
+<span class="material-symbols-outlined">play_circle</span>
+                        Host a Game
+                    </button>
+<button class="group flex items-center gap-3 min-w-[220px] justify-center px-8 py-5 border border-border-custom bg-slate-custom/30 text-white rounded-xl font-bold text-lg hover:bg-slate-custom/50 transition-all">
+<span class="material-symbols-outlined">group</span>
+                        Join a Game
+                    </button>
+</div>
+</div>
+</section>
+<!-- Feature Section -->
+<section class="py-24 px-6 max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row items-end justify-between mb-16 gap-6">
+<div class="max-w-2xl">
+<h2 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">
+                        Premium Learning Experience
+                    </h2>
+<p class="text-slate-400 text-lg font-light leading-relaxed">
+                        Designed for educators who value both aesthetics and functionality. Every interaction is crafted to be seamless.
+                    </p>
+</div>
+<div class="text-primary font-bold flex items-center gap-2 cursor-pointer hover:gap-4 transition-all">
+                    View all features <span class="material-symbols-outlined">arrow_forward</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="group p-8 rounded-2xl border border-border-custom bg-slate-custom/10 hover:bg-slate-custom/20 transition-all">
+<div class="size-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">bar_chart</span>
+</div>
+<h3 class="text-xl font-bold mb-3">Real-time Analytics</h3>
+<p class="text-slate-400 font-light leading-relaxed">
+                        Deep insights into student performance with elegant data visualizations and live heatmaps.
+                    </p>
+</div>
+<!-- Card 2 -->
+<div class="group p-8 rounded-2xl border border-border-custom bg-slate-custom/10 hover:bg-slate-custom/20 transition-all">
+<div class="size-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">database</span>
+</div>
+<h3 class="text-xl font-bold mb-3">Customizable Banks</h3>
+<p class="text-slate-400 font-light leading-relaxed">
+                        Create and share high-quality question sets with our intuitive builder and rich media support.
+                    </p>
+</div>
+<!-- Card 3 -->
+<div class="group p-8 rounded-2xl border border-border-custom bg-slate-custom/10 hover:bg-slate-custom/20 transition-all">
+<div class="size-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">public</span>
+</div>
+<h3 class="text-xl font-bold mb-3">Global Access</h3>
+<p class="text-slate-400 font-light leading-relaxed">
+                        Host sessions for students anywhere in the world with zero latency and multi-language support.
+                    </p>
+</div>
+</div>
+</section>
+<!-- Pricing Section -->
+<section class="py-24 bg-slate-custom/5 border-y border-border-custom/30">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">Transparent Pricing</h2>
+<p class="text-slate-400 font-light">Choose the plan that fits your classroom or institution.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Basic -->
+<div class="flex flex-col p-8 rounded-2xl border border-border-custom bg-background-dark">
+<div class="mb-8">
+<h4 class="text-sm font-bold text-primary uppercase tracking-widest mb-2">Basic</h4>
+<div class="flex items-baseline gap-1">
+<span class="text-4xl font-extrabold">$0</span>
+<span class="text-slate-400 text-sm">/month</span>
+</div>
+</div>
+<ul class="space-y-4 mb-8 flex-1">
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Unlimited Quizzes
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Up to 30 Players
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Standard Assets
+                            </li>
+</ul>
+<button class="w-full py-4 rounded-xl border border-border-custom font-bold hover:bg-slate-custom transition-all">Get Started</button>
+</div>
+<!-- Pro -->
+<div class="flex flex-col p-8 rounded-2xl border-2 border-primary bg-background-dark relative scale-105 shadow-2xl shadow-primary/10">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full">Recommended</div>
+<div class="mb-8">
+<h4 class="text-sm font-bold text-primary uppercase tracking-widest mb-2">Pro</h4>
+<div class="flex items-baseline gap-1">
+<span class="text-4xl font-extrabold">$12</span>
+<span class="text-slate-400 text-sm">/month</span>
+</div>
+</div>
+<ul class="space-y-4 mb-8 flex-1">
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Unlimited Quizzes
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Up to 100 Players
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Premium Asset Library
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Advanced Analytics
+                            </li>
+</ul>
+<button class="w-full py-4 rounded-xl bg-primary text-white font-bold hover:brightness-110 transition-all shadow-lg shadow-primary/20">Go Pro</button>
+</div>
+<!-- Institution -->
+<div class="flex flex-col p-8 rounded-2xl border border-border-custom bg-background-dark">
+<div class="mb-8">
+<h4 class="text-sm font-bold text-primary uppercase tracking-widest mb-2">Institution</h4>
+<div class="flex items-baseline gap-1">
+<span class="text-4xl font-extrabold">$49</span>
+<span class="text-slate-400 text-sm">/month</span>
+</div>
+</div>
+<ul class="space-y-4 mb-8 flex-1">
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Unlimited Players
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> SSO Integration
+                            </li>
+<li class="flex items-center gap-3 text-sm text-slate-300">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span> Dedicated Support
+                            </li>
+</ul>
+<button class="w-full py-4 rounded-xl border border-border-custom font-bold hover:bg-slate-custom transition-all">Contact Sales</button>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-32 relative overflow-hidden">
+<div class="max-w-4xl mx-auto px-6 text-center relative z-10">
+<h2 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-8">
+                    Ready to transform your classroom?
+                </h2>
+<p class="text-slate-400 text-lg mb-12 max-w-2xl mx-auto font-light">
+                    Join thousands of educators using QuizSphere for a more sophisticated learning experience.
+                </p>
+<button class="px-12 py-5 bg-primary text-white text-xl font-bold rounded-xl hover:scale-105 transition-all shadow-2xl shadow-primary/30">
+                    Get Started for Free
+                </button>
+</div>
+<!-- Background Image Decor -->
+<div class="absolute inset-0 z-0 opacity-20 pointer-events-none">
+<div class="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-primary/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 w-[50%] h-full bg-gradient-to-r from-primary/10 to-transparent"></div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="py-12 border-t border-border-custom/30 bg-background-dark">
+<div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">school</span>
+<span class="font-bold text-xl tracking-tight">QuizSphere</span>
+</div>
+<div class="flex gap-8 text-sm text-slate-400">
+<a class="hover:text-white transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-white transition-colors" href="#">Terms of Service</a>
+<a class="hover:text-white transition-colors" href="#">Contact Support</a>
+</div>
+<p class="text-xs text-slate-500">© 2024 QuizSphere Inc. All rights reserved.</p>
+</div>
+</footer>
+</main>
+</body></html>

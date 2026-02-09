@@ -1,0 +1,322 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --landing-bg: #ffffff;
+    --landing-gradient-opacity: 1;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+
+    --radius: 0.75rem;
+    
+    /* Liquid Glass Variables */
+    --glass-blur: 20px;
+    --glass-opacity: 0.03;
+    --glass-border-opacity: 0.08;
+    --glass-transition: all 0.5s cubic-bezier(0.2, 0, 0.2, 1);
+  }
+
+  .dark {
+    --background: 0 0% 10%; /* #1a1a1a - dark grey */
+    --foreground: 210 40% 98%;
+    --landing-bg: #1a1a1a;
+    --landing-gradient-opacity: 1;
+
+    --card: 0 0% 12%; /* #1f1f1f */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 221.2 83.2% 53.3%; /* Restored blue for consistency */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 0 0% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 80%;
+
+    /* Dark Liquid Glass Variables */
+    --glass-opacity: 0.05;
+    --glass-border-opacity: 0.1;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Global 90% Zoom Effect */
+html {
+  zoom: 0.9;
+  -moz-transform: scale(0.9);
+  -moz-transform-origin: 0 0;
+}
+
+@media screen and (min-width: 2560px) {
+  html {
+    zoom: 1; /* Reset zoom on very high res displays if needed */
+  }
+}
+
+.liquid-glass {
+  background: rgba(255, 255, 255, var(--glass-opacity));
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity));
+  box-shadow: 
+    0 4px 24px -1px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+  transition: var(--glass-transition);
+}
+
+.dark .liquid-glass {
+  background: rgba(255, 255, 255, var(--glass-opacity));
+  border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity));
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.liquid-glass-card:hover {
+  background: rgba(255, 255, 255, calc(var(--glass-opacity) + 0.03));
+  border: 1px solid rgba(255, 255, 255, calc(var(--glass-border-opacity) + 0.04));
+  box-shadow: 
+    0 12px 40px -5px rgba(0, 0, 0, 0.15),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.dark .liquid-glass-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1), transparent 50%),
+              radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.05), transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05), transparent 50%);
+}
+
+.landing-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 0;
+  background-color: var(--landing-bg);
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 1;
+  transition: background-color 0.5s ease, background-image 0.5s ease;
+  pointer-events: none;
+}
+
+.no-transition {
+  transition: none !important;
+}
+
+/* Markdown Content Styling */
+.markdown-content h1 { @apply text-lg font-bold mt-4 mb-2; }
+.markdown-content h2 { @apply text-base font-bold mt-3 mb-1.5; }
+.markdown-content h3 { @apply text-sm font-bold mt-2 mb-1; }
+.markdown-content p { @apply mb-3; }
+.markdown-content ul { @apply list-disc ml-4 mb-3; }
+.markdown-content ol { @apply list-decimal ml-4 mb-3; }
+.markdown-content li { @apply mb-1; }
+.markdown-content code { @apply bg-muted px-1.5 py-0.5 rounded text-[12px] font-mono; }
+.markdown-content pre { @apply bg-muted p-3 rounded-xl mb-4 overflow-x-auto border border-border/50; }
+.markdown-content pre code { @apply bg-transparent p-0 text-[11px]; }
+.markdown-content blockquote { @apply border-l-2 border-primary/30 pl-3 italic text-muted-foreground mb-3; }
+.markdown-content a { @apply text-primary hover:underline; }
+.markdown-content table { @apply w-full border-collapse mb-3; }
+.markdown-content th, .markdown-content td { @apply border border-border p-2 text-left; }
+.markdown-content th { @apply bg-muted/50 font-bold; }
+
+/* Blue Gradient (Older version) */
+html[data-gradient-theme='blue'] .landing-bg,
+.landing-bg.gradient-blue {
+  background-image:
+    radial-gradient(
+      60% 40% at 50% 35%,
+      rgba(154, 210, 255, 0.95) 0%,
+      rgba(74, 163, 255, 0.8) 30%,
+      rgba(138, 91, 255, 0) 70%
+    ),
+    radial-gradient(
+      70% 50% at 50% 50%,
+      rgba(255, 79, 216, 0.9) 0%,
+      rgba(138, 91, 255, 0.7) 35%,
+      rgba(255, 127, 202, 0) 70%
+    ),
+    radial-gradient(
+      60% 40% at 50% 65%,
+      rgba(255, 196, 100, 0.9) 0%,
+      rgba(255, 179, 138, 0.75) 30%,
+      rgba(255, 127, 202, 0) 70%
+    ) !important;
+  filter: blur(100px) saturate(180%);
+}
+
+/* Pink Gradient (Restored "Very Beautiful" 4-layer version from GRADIENT.md) */
+html[data-gradient-theme='pink'] .landing-bg,
+.landing-bg.gradient-pink {
+  background-image:
+    /* LAYER 1 – Warm bottom glow */
+    radial-gradient(
+      70% 50% at 50% 65%,
+      rgba(255, 196, 100, 0.9) 0%,
+      rgba(255, 179, 138, 0.75) 24%,
+      rgba(255, 127, 202, 0) 70%
+    ),
+    /* LAYER 2 – Magenta/pink mid bloom */
+    radial-gradient(
+      75% 60% at 52% 50%,
+      rgba(255, 79, 216, 0.95) 0%,
+      rgba(255, 127, 202, 0.65) 36%,
+      rgba(255, 127, 202, 0) 74%
+    ),
+    /* LAYER 3 – Cool core highlight */
+    radial-gradient(
+      65% 45% at 52% 35%,
+      rgba(154, 210, 255, 0.95) 0%,
+      rgba(74, 163, 255, 0.8) 24%,
+      rgba(138, 91, 255, 0) 74%
+    ),
+    /* LAYER 4 – Soft violet envelope */
+    radial-gradient(
+      80% 60% at 50% 55%,
+      rgba(138, 91, 255, 0.25) 0%,
+      rgba(138, 91, 255, 0) 70%
+    ) !important;
+  filter: blur(100px) saturate(180%);
+}
+
+.dark .landing-bg {
+  background-color: var(--landing-bg);
+}
+
+.dark[data-gradient-theme='blue'] .landing-bg,
+.dark .landing-bg.gradient-blue {
+  filter: blur(140px) saturate(220%);
+  background-image:
+    radial-gradient(
+      70% 50% at 50% 35%,
+      rgba(154, 210, 255, 0.85) 0%,
+      rgba(74, 163, 255, 0.6) 30%,
+      rgba(138, 91, 255, 0) 70%
+    ),
+    radial-gradient(
+      80% 60% at 50% 50%,
+      rgba(255, 79, 216, 0.8) 0%,
+      rgba(138, 91, 255, 0.6) 35%,
+      rgba(255, 127, 202, 0) 70%
+    ),
+    radial-gradient(
+      70% 50% at 50% 65%,
+      rgba(255, 196, 100, 0.8) 0%,
+      rgba(255, 179, 138, 0.65) 30%,
+      rgba(255, 127, 202, 0) 70%
+    ) !important;
+}
+
+/* Pink Gradient Dark Mode (Restored "Very Beautiful" version) */
+.dark[data-gradient-theme='pink'] .landing-bg,
+.dark .landing-bg.gradient-pink {
+  filter: blur(140px) saturate(220%);
+  background-image:
+    /* Layer 1 - Warm Bottom */
+    radial-gradient(
+      80% 60% at 50% 65%,
+      rgba(255, 196, 100, 0.8) 0%,
+      rgba(255, 179, 138, 0.6) 30%,
+      rgba(255, 127, 202, 0) 70%
+    ),
+    /* Layer 2 - Magenta Mid */
+    radial-gradient(
+      90% 70% at 50% 50%,
+      rgba(255, 79, 216, 0.85) 0%,
+      rgba(138, 91, 255, 0.6) 40%,
+      rgba(255, 127, 202, 0) 80%
+    ),
+    /* Layer 3 - Cool Core */
+    radial-gradient(
+      75% 55% at 50% 35%,
+      rgba(154, 210, 255, 0.7) 0%,
+      rgba(74, 163, 255, 0.5) 30%,
+      rgba(138, 91, 255, 0) 70%
+    ),
+    /* Layer 4 - Violet Envelope */
+    radial-gradient(
+      100% 80% at 50% 55%,
+      rgba(138, 91, 255, 0.3) 0%,
+      rgba(138, 91, 255, 0) 70%
+    ) !important;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}

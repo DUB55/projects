@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Antigravity Web Client</title>
+<style>
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; max-width: 900px }
+.row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px }
+input, button, textarea, select { font-size: 14px; padding: 8px }
+textarea { width: 100%; box-sizing: border-box }
+pre { background: #f6f8fa; padding: 10px; overflow: auto }
+.card { border: 1px solid #e1e4e8; padding: 12px; border-radius: 8px; margin-bottom: 12px }
+.title { font-weight: 600; margin-bottom: 6px }
+</style>
+<body>
+<div class="card" id="loginCard">
+  <div class="title">Login</div>
+  <div class="row">
+    <input id="loginUser" placeholder="Gebruikersnaam" style="flex:1">
+    <input id="loginPass" type="password" placeholder="Wachtwoord" style="flex:1">
+    <button onclick="doLogin()">Login</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="title">Backend adres</div>
+  <div class="row">
+    <input id="base" placeholder="http://localhost:5000" style="flex:1">
+    <button onclick="ping()">Controleer</button>
+  </div>
+  <div class="row">
+    <button onclick="status()">Status</button>
+    <button onclick="latest()">Laatste respons</button>
+    <button onclick="chat()">Chat</button>
+  </div>
+  <pre id="health"></pre>
+  <pre id="status"></pre>
+  <pre id="latest"></pre>
+  <div id="chatBox"></div>
+</div>
+
+<div class="card">
+  <div class="title">Prompt</div>
+  <textarea id="prompt" rows="6" placeholder="Schrijf hier je prompt"></textarea>
+  <div class="row">
+    <button onclick="sendPrompt()">Verstuur prompt</button>
+    <button onclick="captureChat()">Capture chat</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="title">Configuratie</div>
+  <div class="row">
+    <input id="username" placeholder="username" value="tcookdub5" style="flex:1">
+    <input id="password" placeholder="password" value="Wongfeihung99-" type="password" style="flex:1">
+  </div>
+  <div class="row">
+    <input id="stability_cycles" placeholder="stability_cycles" value="3">
+    <input id="min_length" placeholder="min_length" value="20">
+    <input id="max_wait_seconds" placeholder="max_wait_seconds" value="300">
+  </div>
+  <div class="row">
+    <input id="user_begin_marker" placeholder="user_begin_marker" value="-*-BEGIN-*-" style="flex:1">
+    <input id="user_end_marker" placeholder="user_end_marker" value="-*-END-*-" style="flex:1">
+  </div>
+  <div class="row">
+    <input id="md_path" placeholder="md_path" style="flex:1">
+  </div>
+  <div class="row">
+    <button onclick="updateConfig()">Update config</button>
+  </div>
+  <pre id="configResult"></pre>
+</div>
+
+<div class="card">
+  <div class="title">Markdown export</div>
+  <div class="row">
+    <button onclick="exportMd()">Start export</button>
+    <button onclick="getMd()">Haal MD op</button>
+  </div>
+  <pre id="mdStatus"></pre>
+  <pre id="mdContent"></pre>
+</div>
+
+<script>
+// --- Auth Logic ---
+let authHeader = null;
+
+function doLogin() {
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value.trim();
+    if (!u || !p) { alert("Vul alles in"); return; }
+    // Create Basic Auth header
+    const token = btoa(u + ":" + p);
+    authHeader = { 'Authorization': 'Basic ' + token };
+    localStorage.setItem('antigravity_auth', token);
+    document.getElementById('loginCard').style.display = 'none';
+    ping();
+}
+
+function restoreLogin() {
+    const token = localStorage.getItem('antigravity_auth');
+    if (token) {
+        authHeader = { 'Authorization': 'Basic ' + token };
+        document.getElementById('loginCard').style.display = 'none';
+        // Auto-ping if base url is saved
+        if (localStorage.getItem('antigravity_base')) {
+             document.getElementById('base').value = localStorage.getItem('antigravity_base');
+             ping();
+        }
+    }
+}
+
+function getHeaders(extra = {}) {
+    const h = { ...extra };
+    if (authHeader) Object.assign(h, authHeader);
+    return h;
+}
+
+function baseUrl() {
+  const v = document.getElementById('base').value.trim();
+  if(v) localStorage.setItem('antigravity_base', v);
+  return v || 'http://localhost:5000';
+}
+
+async function ping() {
+  try {
+    const r = await fetch(baseUrl() + '/health', { method: 'GET', headers: getHeaders() });
+    if(r.status === 401) { document.getElementById('health').textContent = 'Unauthorized'; return; }
+    document.getElementById('health').textContent = await r.text();
+  } catch(e) {
+    document.getElementById('health').textContent = 'Geen verbinding';
+  }
+}
+async function status() {
+  try {
+    const r = await fetch(baseUrl() + '/status', { method: 'GET', headers: getHeaders() });
+    if(r.status === 401) { alert("Unauthorized"); return; }
+    const j = await r.json();
+    document.getElementById('status').textContent = JSON.stringify(j, null, 2);
+  } catch(e) {
+    document.getElementById('status').textContent = 'Fout';
+  }
+}
+async function latest() {
+  try {
+    const r = await fetch(baseUrl() + '/latest', { method: 'GET', headers: getHeaders() });
+    if(r.status === 401) { alert("Unauthorized"); return; }
+    const j = await r.json();
+    document.getElementById('latest').textContent = j.response || '';
+  } catch(e) {
+    document.getElementById('latest').textContent = 'Fout';
+  }
+}
+async function chat() {
+  try {
+    const r = await fetch(baseUrl() + '/chat', { method: 'GET', headers: getHeaders() });
+    if(r.status === 401) { alert("Unauthorized"); return; }
+    const j = await r.json();
+    const box = document.getElementById('chatBox');
+    box.innerHTML = '';
+    (j.messages || []).forEach(m => {
+      const el = document.createElement('pre');
+      el.textContent = (m.type.toUpperCase() + ': ') + m.text;
+      box.appendChild(el);
+    });
+  } catch(e) {
+    document.getElementById('chatBox').innerHTML = 'Fout';
+  }
+}
+async function sendPrompt() {
+  const p = document.getElementById('prompt').value;
+  try {
+    await fetch(baseUrl() + '/prompt', { method: 'POST', headers: getHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ prompt: p }) });
+  } catch(e) {}
+}
+async function captureChat() {
+  try {
+    await fetch(baseUrl() + '/capture_chat', { method: 'POST', headers: getHeaders() });
+    await new Promise(r => setTimeout(r, 500));
+    await chat();
+    await latest();
+  } catch(e) {}
+}
+async function updateConfig() {
+  const payload = {};
+  const u = document.getElementById('username').value.trim();
+  const pw = document.getElementById('password').value.trim();
+  const sc = document.getElementById('stability_cycles').value.trim();
+  const ml = document.getElementById('min_length').value.trim();
+  const mw = document.getElementById('max_wait_seconds').value.trim();
+  const ub = document.getElementById('user_begin_marker').value.trim();
+  const ue = document.getElementById('user_end_marker').value.trim();
+  const mp = document.getElementById('md_path').value.trim();
+  if (u) payload.username = u;
+  if (pw) payload.password = pw;
+  if (sc) payload.stability_cycles = parseInt(sc);
+  if (ml) payload.min_length = parseInt(ml);
+  if (mw) payload.max_wait_seconds = parseInt(mw);
+  if (ub) payload.user_begin_marker = ub;
+  if (ue) payload.user_end_marker = ue;
+  if (mp) payload.md_path = mp;
+  try {
+    const r = await fetch(baseUrl() + '/config', { method: 'POST', headers: getHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(payload) });
+    const j = await r.json();
+    document.getElementById('configResult').textContent = JSON.stringify(j, null, 2);
+  } catch(e) {
+    document.getElementById('configResult').textContent = 'Fout';
+  }
+}
+async function exportMd() {
+  try {
+    const r = await fetch(baseUrl() + '/export_md', { method: 'POST', headers: getHeaders() });
+    const j = await r.json();
+    document.getElementById('mdStatus').textContent = JSON.stringify(j, null, 2);
+  } catch(e) {
+    document.getElementById('mdStatus').textContent = 'Fout';
+  }
+}
+async function getMd() {
+  try {
+    const r = await fetch(baseUrl() + '/md', { method: 'GET', headers: getHeaders() });
+    const j = await r.json();
+    document.getElementById('mdContent').textContent = j.content || '';
+  } catch(e) {
+    document.getElementById('mdContent').textContent = 'Fout';
+  }
+}
+
+// Init
+restoreLogin();
+</script>
+</body>
+</html>

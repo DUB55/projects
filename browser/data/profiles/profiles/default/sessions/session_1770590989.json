@@ -1,0 +1,28 @@
+{
+  "session_id": "session_1770590989",
+  "name": "Auto-save",
+  "timestamp": "2026-02-08T23:57:19.160279",
+  "profile_id": null,
+  "windows": [
+    {
+      "window_id": "1",
+      "x": 100,
+      "y": 100,
+      "width": 1280,
+      "height": 800,
+      "is_maximized": false,
+      "tabs": [
+        {
+          "tab_id": "1",
+          "url": "about:home",
+          "title": "New Tab",
+          "position": 0,
+          "is_active": false,
+          "group_id": null
+        }
+      ],
+      "groups": [],
+      "active_tab_id": "1"
+    }
+  ]
+}

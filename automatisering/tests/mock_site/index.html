@@ -1,0 +1,337 @@
+<!-- tests/mock_site/index.html -->
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Noordhoff - Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .header {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .greeting {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            margin: 0;
+        }
+        
+        .content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .book-item {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .book-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            border-color: #4a86e8;
+        }
+        
+        .book-title {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        
+        .book-meta {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .book-description {
+            color: #34495e;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        
+        .select-button {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #4a86e8;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .select-button:hover {
+            background-color: #3a76d8;
+        }
+        
+        .logout-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background-color: #e74c3c;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .logout-button:hover {
+            background-color: #c0392b;
+        }
+        
+        .demo-notice {
+            background-color: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        
+        .demo-notice h3 {
+            margin-top: 0;
+            color: #ff9800;
+        }
+        
+        .instructions {
+            background-color: #e8f4fc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 40px;
+        }
+        
+        .instructions h2 {
+            color: #2c5aa0;
+            margin-top: 0;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .books-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="greeting" id="greeting">Welkom bij Mock Noordhoff</h1>
+            <p class="subtitle">Dashboard - Selecteer een boek om te beginnen</p>
+            
+            <a href="login.html" class="logout-button">Uitloggen</a>
+        </div>
+        
+        <!-- Demo notice -->
+        <div class="demo-notice">
+            <h3>Demo Platform - Voor Scraper Testing</h3>
+            <p>Dit is een mock versie van het Noordhoff platform voor het testen van de scraper applicatie. Alle boeken zijn demo content.</p>
+        </div>
+        
+        <!-- Books grid -->
+        <div class="books-grid">
+            <!-- Book 1 -->
+            <div class="book-item" data-book-id="1">
+                <h2 class="book-title">Wiskunde A - 4 VWO</h2>
+                <div class="book-meta">
+                    <strong>Auteur:</strong> Noordhoff Uitgevers<br>
+                    <strong>Hoofdstukken:</strong> 8<br>
+                    <strong>Paragrafen:</strong> 32
+                </div>
+                <p class="book-description">
+                    Complete methode voor Wiskunde A op 4 VWO niveau. Bevat alle basisonderwerpen inclusief algebra, meetkunde en statistiek.
+                </p>
+                <button class="select-button" onclick="selectBook(1)">Selecteer dit boek</button>
+            </div>
+            
+            <!-- Book 2 -->
+            <div class="book-item" data-book-id="2">
+                <h2 class="book-title">Natuurkunde - 5 VWO</h2>
+                <div class="book-meta">
+                    <strong>Auteur:</strong> Noordhoff Uitgevers<br>
+                    <strong>Hoofdstukken:</strong> 10<br>
+                    <strong>Paragrafen:</strong> 45
+                </div>
+                <p class="book-description">
+                    Moderne natuurkundemethode met aandacht voor onderzoekend leren en practica. Bevat mechanica, elektriciteit en quantumfysica.
+                </p>
+                <button class="select-button" onclick="selectBook(2)">Selecteer dit boek</button>
+            </div>
+            
+            <!-- Book 3 -->
+            <div class="book-item" data-book-id="3">
+                <h2 class="book-title">Scheikunde - 6 VWO</h2>
+                <div class="book-meta">
+                    <strong>Auteur:</strong> Noordhoff Uitgevers<br>
+                    <strong>Hoofdstukken:</strong> 12<br>
+                    <strong>Paragrafen:</strong> 50
+                </div>
+                <p class="book-description">
+                    Complete scheikundemethode voor het eindexamenjaar. Bevat organische chemie, reactiekinetiek en analytische chemie.
+                </p>
+                <button class="select-button" onclick="selectBook(3)">Selecteer dit boek</button>
+            </div>
+            
+            <!-- Book 4 -->
+            <div class="book-item" data-book-id="4">
+                <h2 class="book-title">Biologie - 3 VWO</h2>
+                <div class="book-meta">
+                    <strong>Auteur:</strong> Noordhoff Uitgevers<br>
+                    <strong>Hoofdstukken:</strong> 7<br>
+                    <strong>Paragrafen:</strong> 28
+                </div>
+                <p class="book-description">
+                    Biologiemethode met veel visuele ondersteuning. Bevat celbiologie, genetica, ecologie en menselijke fysiologie.
+                </p>
+                <button class="select-button" onclick="selectBook(4)">Selecteer dit boek</button>
+            </div>
+            
+            <!-- Book 5 -->
+            <div class="book-item" data-book-id="5">
+                <h2 class="book-title">Economie - 4 HAVO</h2>
+                <div class="book-meta">
+                    <strong>Auteur:</strong> Noordhoff Uitgevers<br>
+                    <strong>Hoofdstukken:</strong> 9<br>
+                    <strong>Paragrafen:</strong> 36
+                </div>
+                <p class="book-description">
+                    Praktische economiemethode met veel actuele voorbeelden. Bevat marktwerking, geld en bankwezen, en internationale handel.
+                </p>
+                <button class="select-button" onclick="selectBook(5)">Selecteer dit boek</button>
+            </div>
+            
+            <!-- Book 6 -->
+            <div class="book-item" data-book-id="6">
+                <h2 class="book-title">Geschiedenis - 5 VWO</h2>
+                <div class="book-meta">
+                    <strong>Auteur:</strong> Noordhoff Uitgevers<br>
+                    <strong>Hoofdstukken:</strong> 11<br>
+                    <strong>Paragrafen:</strong> 44
+                </div>
+                <p class="book-description">
+                    Geschiedenismethode met aandacht voor historisch denken. Bevat de tijdvakken van prehistorie tot moderne tijd.
+                </p>
+                <button class="select-button" onclick="selectBook(6)">Selecteer dit boek</button>
+            </div>
+        </div>
+        
+        <!-- Instructions for scraper testing -->
+        <div class="instructions">
+            <h2>Instructies voor Scraper Testing</h2>
+            <p>Deze mock site heeft de volgende structuur voor scraper testing:</p>
+            
+            <h3>Selectors die werken:</h3>
+            <ul>
+                <li><strong>Book list selector:</strong> <code>.book-item</code></li>
+                <li><strong>Book title selector:</strong> <code>.book-title</code></li>
+                <li><strong>Greeting selector:</strong> <code>#greeting</code></li>
+            </ul>
+            
+            <h3>Test workflow:</h3>
+            <ol>
+                <li>Start op login.html</li>
+                <li>Login met elke combinatie van e-mail/wachtwoord</li>
+                <li>Je komt op dit dashboard (index.html)</li>
+                <li>Klik op een boek om naar book.html te gaan</li>
+                <li>In book.html: klik hoofdstukken en paragrafen</li>
+            </ol>
+            
+            <h3>Voorbeeld configuratie voor deze mock site:</h3>
+            <pre><code>{
+  "start_url": "http://localhost:8080/login.html",
+  "login": {
+    "use_login": true,
+    "username_selector": "#email",
+    "password_selector": "#password",
+    "submit_selector": "button[type='submit']"
+  },
+  "book_selection": {
+    "book_list_selector": ".book-item",
+    "book_item_title_selector": ".book-title"
+  }
+}</code></pre>
+            
+            <p><strong>Tip:</strong> Gebruik de Selector Tester in de applicatie om deze selectors te testen!</p>
+        </div>
+    </div>
+
+    <script>
+        // Check login status
+        window.addEventListener('load', function() {
+            const loggedIn = localStorage.getItem('loggedIn');
+            const userEmail = localStorage.getItem('userEmail');
+            
+            if (!loggedIn || loggedIn !== 'true') {
+                // Redirect to login if not logged in
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Update greeting
+            if (userEmail) {
+                document.getElementById('greeting').textContent = 
+                    `Welkom, ${userEmail.split('@')[0]}!`;
+            }
+        });
+        
+        // Book selection
+        function selectBook(bookId) {
+            console.log(`Book ${bookId} selected`);
+            
+            // Store selected book in localStorage
+            localStorage.setItem('selectedBookId', bookId);
+            
+            // Navigate to book page
+            window.location.href = 'book.html';
+        }
+        
+        // Expose function for scraper testing
+        window.selectBook = selectBook;
+    </script>
+</body>
+</html>

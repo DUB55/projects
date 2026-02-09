@@ -1,0 +1,32 @@
+.liquid-glass-canvas {
+  display: block;
+  border-radius: inherit;
+  pointer-events: auto;
+  transition: transform 0.3s ease-out;
+}
+
+.liquid-glass-container {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+  line-height: 0;
+}
+
+.liquid-glass-fallback {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: none;
+}
+
+/* Fallback for when WebGL fails */
+.webgl-failed .liquid-glass-fallback {
+  display: block;
+}
+
+.webgl-failed .liquid-glass-canvas {
+  display: none;
+}

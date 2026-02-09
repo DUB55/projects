@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Host | Free Quiz Platform</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Host Dashboard</h1>
+      <div class="grid grid-2">
+        <div class="card">
+          <h2>Create Quiz</h2>
+          <div id="quiz-form">
+            <label>Title</label>
+            <input id="quiz-title" placeholder="Quiz title" />
+            <h3>Questions</h3>
+            <div id="questions"></div>
+            <button id="add-question">Add Question</button>
+            <div style="margin-top:8px; display:flex; gap:8px;">
+              <button id="export-quiz" class="secondary">Export JSON</button>
+              <label style="display:inline-block;">
+                <input id="import-file" type="file" accept="application/json" style="display:none;" />
+                <button id="import-quiz" class="secondary">Import JSON</button>
+              </label>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px;">
+              <button id="save-quiz">Save Quiz</button>
+              <button id="create-session" disabled>Create Session</button>
+            </div>
+            <div id="quiz-status" style="margin-top:8px;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Session</h2>
+          <div id="session-panel">
+            <div>Session Code: <strong id="session-code">—</strong></div>
+            <div style="margin-top:8px;">
+              <button id="join-as-host" disabled>Join As Host</button>
+              <button id="start" disabled>Start</button>
+              <button id="end-question" disabled>End Question</button>
+              <button id="next" disabled>Next Question</button>
+            </div>
+            <div id="lobby" style="margin-top:12px;">
+              <h3>Lobby</h3>
+              <ul id="players"></ul>
+            </div>
+            <div id="current-question" style="margin-top:12px;"></div>
+            <div id="leaderboard" style="margin-top:12px;"></div>
+            <div id="q-summary" style="margin-top:12px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/host.js" type="module"></script>
+  </body>
+</html>

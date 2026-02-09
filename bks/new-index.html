@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blinkist — Premium UI Mock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --muted: #8b949e;
+      --text: #e6edf3;
+      --primary: #2dd4bf;
+      --primary-fg: #0d1117;
+      --secondary: #60a5fa;
+      --border: #30363d;
+      --chip: #21262d;
+      --glow: rgba(45, 212, 191, 0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0 }
+    html, body { height: 100% }
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app { min-height: 100vh; display: flex; flex-direction: column }
+
+    /* Top Bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--primary-fg);
+      font-size: 14px;
+    }
+    .topbar-actions { display: flex; gap: 8px }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .icon-btn:hover { border-color: var(--primary); background: var(--chip) }
+    .notification-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 8px;
+      height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      position: sticky;
+      top: 69px;
+      z-index: 99;
+      background: var(--bg);
+    }
+    .tabs::-webkit-scrollbar { display: none }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      background: var(--chip);
+      color: var(--text);
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .tab:hover { border-color: rgba(45,212,191,0.5) }
+    .tab.active { background: var(--primary); color: var(--primary-fg); border-color: transparent }
+
+    /* Main Content */
+    .main { flex: 1; max-width: 1100px; margin: 0 auto; width: 100% }
+    .view { display: none; padding: 16px }
+    .view.active { display: block }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .section-header h2 { font-size: 18px; font-weight: 700 }
+    .section-header h1 { font-size: 24px; font-weight: 700 }
+    .section-subtitle { color: var(--muted); font-size: 14px; margin-top: 2px }
+    .link-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--secondary);
+      background: none;
+      border: none;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .link-btn:hover { text-decoration: underline }
+
+    /* Carousel */
+    .carousel-section { margin-bottom: 24px }
+    .carousel {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .carousel::-webkit-scrollbar { display: none }
+
+    /* Cards */
+    .card {
+      flex-shrink: 0;
+      width: 200px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .card:hover { border-color: rgba(45,212,191,0.5); transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.3) }
+    .card-cover {
+      height: 110px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #1f2937, #0ea5e9);
+    }
+    .card-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .card-author { color: var(--muted); font-size: 13px; margin-bottom: 10px }
+    .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .rating { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); margin-left: auto }
+    .rating svg { fill: var(--primary); width: 12px; height: 12px }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .grid .card { width: 100% }
+
+    /* Categories */
+    .categories { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px }
+    .chip {
+      padding: 10px 16px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover { border-color: rgba(45,212,191,0.5) }
+    .chip.active { background: var(--primary); color: var(--primary-fg); border-color: transparent }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+    }
+    .search-bar input::placeholder { color: var(--muted) }
+    .filters { display: flex; gap: 8px; margin-bottom: 16px }
+    .filter {
+      padding: 8px 16px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter.active { background: var(--primary); color: var(--primary-fg); border-color: transparent }
+
+    /* Library */
+    .library-section { margin-bottom: 28px }
+    .library-section h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .library-section h3 svg { color: var(--primary) }
+    .library-section .count { color: var(--muted); font-weight: 500 }
+    .highlight-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .highlight-item h4 { font-weight: 700; margin-bottom: 6px }
+    .highlight-item p { color: var(--muted); font-style: italic; font-size: 14px }
+
+    /* Spaces */
+    .spaces-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px }
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: var(--primary-fg);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.9 }
+    .space-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .space-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px }
+    .space-meta { display: flex; gap: 16px; color: var(--muted); font-size: 13px; margin-bottom: 14px }
+    .space-actions { display: flex; gap: 10px }
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--chip);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: rgba(45,212,191,0.5) }
+
+    /* Profile */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .profile-info h2 { font-size: 20px; font-weight: 700 }
+    .profile-info p { color: var(--muted) }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value { font-size: 24px; font-weight: 700; color: var(--primary) }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px }
+    .settings-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .settings-section h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .settings-section h4 svg { color: var(--primary) }
+    .speed-options, .theme-options { display: flex; gap: 8px; flex-wrap: wrap }
+    .speed-btn, .theme-btn {
+      padding: 10px 16px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .speed-btn.active, .theme-btn.active { background: var(--primary); color: var(--primary-fg); border-color: transparent }
+    .theme-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px }
+    .menu-items { border-radius: 16px; overflow: hidden }
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 16px;
+      background: var(--card);
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 15px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .menu-item:hover { background: var(--chip) }
+    .menu-item:last-child { border-bottom: none }
+    .menu-item.danger { color: #f87171 }
+    .menu-item svg { color: var(--muted); width: 20px; height: 20px }
+    .menu-item.danger svg { color: #f87171 }
+
+    /* Modal */
+    .modal { display: none; position: fixed; inset: 0; z-index: 200; align-items: flex-end }
+    .modal.open { display: flex }
+    .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px) }
+    .modal-sheet {
+      position: relative;
+      width: 100%;
+      max-height: 88vh;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 24px 24px 0 0;
+      overflow: hidden;
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0 }
+      to { transform: translateY(0); opacity: 1 }
+    }
+    .modal-header {
+      display: flex;
+      gap: 16px;
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-cover { width: 110px; height: 110px; border-radius: 14px; flex-shrink: 0 }
+    .modal-info { flex: 1; min-width: 0 }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 6px }
+    .modal-author { color: var(--muted); margin-bottom: 12px }
+    .modal-tags { display: flex; flex-wrap: wrap; gap: 8px }
+    .close-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      background: var(--chip);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .modal-body { padding: 20px; overflow-y: auto; max-height: 50vh }
+    .modal-description { color: var(--muted); line-height: 1.7; margin-bottom: 20px }
+    .action-row { display: flex; gap: 12px; margin-bottom: 16px }
+    .action-row .btn-primary { flex: 1; justify-content: center; padding: 14px }
+    .secondary-actions { display: flex; flex-wrap: wrap; gap: 10px }
+
+    /* Reader Overlay */
+    .reader { display: none; position: fixed; inset: 0; z-index: 300; background: var(--bg); flex-direction: column }
+    .reader.open { display: flex }
+    .reader-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .reader-header-left { display: flex; align-items: center; gap: 12px }
+    .reader-header h3 { font-weight: 700 }
+    .reader-header p { font-size: 13px; color: var(--muted) }
+    .progress-bar { height: 4px; background: var(--chip) }
+    .progress-fill { height: 100%; background: var(--primary); transition: width 0.3s }
+    .reader-toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .reader-toolbar::-webkit-scrollbar { display: none }
+    .reader-content { flex: 1; overflow-y: auto; padding: 24px 20px }
+    .reader-content h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px }
+    .reader-content p { font-size: 17px; line-height: 1.8; color: rgba(230,237,243,0.9); margin-bottom: 20px }
+    .reader-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover { border-color: rgba(45,212,191,0.5) }
+    .nav-btn:disabled { opacity: 0.5; cursor: not-allowed }
+    .page-indicator { color: var(--muted); font-size: 14px }
+
+    /* Player Bar */
+    .player { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 250; background: var(--card); border-top: 1px solid var(--border); padding: 12px 16px }
+    .player.open { display: block }
+    .player-progress { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--chip); cursor: pointer }
+    .player-progress-fill { height: 100%; background: var(--primary); width: 35% }
+    .player-content { display: flex; align-items: center; gap: 12px; padding-top: 4px }
+    .player-cover { width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0 }
+    .player-info { flex: 1; min-width: 0 }
+    .player-info h4 { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .player-info p { font-size: 12px; color: var(--muted) }
+    .player-controls { display: flex; align-items: center; gap: 4px }
+    .play-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--primary);
+      color: var(--primary-fg);
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .player-speed { display: none; gap: 4px }
+    @media (min-width: 640px) {
+      .player-speed { display: flex }
+    }
+    .speed-chip {
+      padding: 6px 10px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .speed-chip.active { background: var(--primary); color: var(--primary-fg); border-color: transparent }
+
+    /* SVG Icons */
+    .icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+    .icon-sm { width: 16px; height: 16px }
+    .icon-lg { width: 20px; height: 20px }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">B</div>
+        <span>Blinkist</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" data-tab="search" aria-label="Search">🔍</button>
+        <button class="icon-btn" aria-label="Notifications">
+          🔔
+          <span class="notification-dot"></span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="discover" role="tab">🧭 Discover</button>
+      <button class="tab" data-tab="search" role="tab">🔍 Search</button>
+      <button class="tab" data-tab="library" role="tab">📚 Library</button>
+      <button class="tab" data-tab="spaces" role="tab">👥 Spaces</button>
+      <button class="tab" data-tab="profile" role="tab">👤 Profile</button>
+    </nav>
+
+    <main class="main">
+      <!-- DISCOVER VIEW -->
+      <section id="discover" class="view active">
+        <div class="section-header" style="flex-direction: column; align-items: flex-start; margin-bottom: 20px">
+          <h1>For You</h1>
+          <p class="section-subtitle">Personalized recommendations</p>
+        </div>
+
+        <div class="carousel-section">
+          <div class="section-header">
+            <h2>Continue Learning</h2>
+            <button class="link-btn">More →</button>
+          </div>
+          <div class="carousel" id="carousel-foryou"></div>
+        </div>
+
+        <div class="carousel-section">
+          <div class="section-header">
+            <h2>Trending Now</h2>
+            <button class="link-btn">More →</button>
+          </div>
+          <div class="carousel" id="carousel-trending"></div>
+        </div>
+
+        <div class="carousel-section">
+          <div class="section-header">
+            <h2>Just Added</h2>
+            <button class="link-btn">More →</button>
+          </div>
+          <div class="carousel" id="carousel-new"></div>
+        </div>
+
+        <div class="section-header" style="margin-top: 8px">
+          <h2>Browse Categories</h2>
+        </div>
+        <div class="categories" id="categories"></div>
+      </section>
+
+      <!-- SEARCH VIEW -->
+      <section id="search" class="view">
+        <div class="search-bar">
+          <span>🔍</span>
+          <input type="text" id="searchInput" placeholder="Search by title, author, or topic...">
+          <button class="icon-btn" style="width: 36px; height: 36px">⚙️</button>
+        </div>
+        <div class="filters">
+          <button class="filter active" data-filter="all">All</button>
+          <button class="filter" data-filter="blink">Blinks</button>
+          <button class="filter" data-filter="shortcast">Shortcasts</button>
+        </div>
+        <div class="grid" id="searchResults"></div>
+      </section>
+
+      <!-- LIBRARY VIEW -->
+      <section id="library" class="view">
+        <div class="library-section">
+          <h3>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            Saved <span class="count">(4)</span>
+          </h3>
+          <div class="grid" id="savedGrid"></div>
+        </div>
+        <div class="library-section">
+          <h3>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Downloads <span class="count">(3)</span>
+          </h3>
+          <div class="grid" id="downloadsGrid"></div>
+        </div>
+        <div class="library-section">
+          <h3>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Highlights <span class="count">(3)</span>
+          </h3>
+          <div id="highlightsList"></div>
+        </div>
+      </section>
+
+      <!-- SPACES VIEW -->
+      <section id="spaces" class="view">
+        <div class="spaces-header">
+          <h2>Your Spaces</h2>
+          <button class="btn-primary">+ Create Space</button>
+        </div>
+        <div id="spacesList"></div>
+        <p style="text-align: center; color: var(--muted); padding: 32px 0; font-size: 14px">
+          Spaces help you organize content and collaborate with others.
+        </p>
+      </section>
+
+      <!-- PROFILE VIEW -->
+      <section id="profile" class="view">
+        <div class="profile-header">
+          <div class="avatar">👤</div>
+          <div class="profile-info">
+            <h2>Alex Johnson</h2>
+            <p>Learner since 2022</p>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value">47</div>
+            <div class="stat-label">Titles Read</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">12h</div>
+            <div class="stat-label">Time Listened</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">5</div>
+            <div class="stat-label">Day Streak</div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>
+            <svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            Playback Speed
+          </h4>
+          <div class="speed-options" id="speedOptions"></div>
+        </div>
+        <div class="settings-section">
+          <h4>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            Theme
+          </h4>
+          <div class="theme-options">
+            <button class="theme-btn">☀️ Light</button>
+            <button class="theme-btn active">🌙 Dark</button>
+          </div>
+        </div>
+        <div class="menu-items">
+          <button class="menu-item">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Notifications
+          </button>
+          <button class="menu-item">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Help & Support
+          </button>
+          <button class="menu-item danger">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Log Out
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- DETAIL MODAL -->
+    <div id="detailModal" class="modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <div class="modal-cover" id="modalCover"></div>
+          <div class="modal-info">
+            <h2 class="modal-title" id="modalTitle"></h2>
+            <p class="modal-author" id="modalAuthor"></p>
+            <div class="modal-tags" id="modalTags"></div>
+          </div>
+          <button class="close-btn" id="closeModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-description" id="modalDescription"></p>
+          <div class="action-row">
+            <button class="btn-primary" id="readBtn">📖 Read</button>
+            <button class="btn-primary" id="listenBtn">🎧 Listen</button>
+          </div>
+          <div class="secondary-actions">
+            <button class="btn-secondary">⬇️ Download</button>
+            <button class="btn-secondary">📁 Add to Space</button>
+            <button class="btn-secondary">🔖 Save</button>
+            <button class="btn-secondary">📤 Share</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- READER OVERLAY -->
+    <div id="readerOverlay" class="reader">
+      <div class="reader-header">
+        <div class="reader-header-left">
+          <button class="icon-btn" id="closeReader">✕</button>
+          <div>
+            <h3 id="readerTitle">Title</h3>
+            <p id="readerChapter">Chapter 1</p>
+          </div>
+        </div>
+        <button class="icon-btn">⚙️</button>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="readerProgress"></div>
+      </div>
+      <div class="reader-toolbar">
+        <button class="chip">🖍️ Highlight</button>
+        <button class="chip">📝 Add Note</button>
+        <button class="chip">🔖 Bookmark</button>
+      </div>
+      <div class="reader-content" id="readerContent"></div>
+      <div class="reader-nav">
+        <button class="nav-btn" id="prevChapter">← Previous</button>
+        <span class="page-indicator" id="pageIndicator">1 / 5</span>
+        <button class="nav-btn" id="nextChapter">Next →</button>
+      </div>
+    </div>
+
+    <!-- PLAYER BAR -->
+    <div id="playerBar" class="player">
+      <div class="player-progress">
+        <div class="player-progress-fill"></div>
+      </div>
+      <div class="player-content">
+        <div class="player-cover" id="playerCover"></div>
+        <div class="player-info">
+          <h4 id="playerTitle">Title</h4>
+          <p id="playerAuthor">Author</p>
+        </div>
+        <div class="player-controls">
+          <button class="icon-btn">⏮</button>
+          <button class="play-btn" id="playPauseBtn">▶</button>
+          <button class="icon-btn">⏭</button>
+        </div>
+        <div class="player-speed" id="playerSpeed"></div>
+        <button class="icon-btn" id="closePlayer">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data
+    const content = [
+      { id: 'c1', title: 'Deep Work', author: 'Cal Newport', type: 'Blink', section: 'for-you', audio: true, category: 'Productivity', description: 'Focus without distraction for optimal results. Learn how to cultivate deep focus in a world full of distractions.', rating: 4.8, duration: '15 min', gradient: 'linear-gradient(135deg, #1f2937, #0ea5e9)' },
+      { id: 'c2', title: 'Atomic Habits', author: 'James Clear', type: 'Blink', section: 'for-you', audio: true, category: 'Psychology', description: 'Build better habits with small changes. Tiny changes, remarkable results.', rating: 4.9, duration: '18 min', gradient: 'linear-gradient(135deg, #374151, #10b981)' },
+      { id: 'c3', title: 'Think Again', author: 'Adam Grant', type: 'Blink', section: 'trending', audio: true, category: 'Psychology', description: 'Learn to question and rethink assumptions. The power of knowing what you don\'t know.', rating: 4.7, duration: '16 min', gradient: 'linear-gradient(135deg, #1f2937, #8b5cf6)' },
+      { id: 'c4', title: 'The Daily Stoic', author: 'Ryan Holiday', type: 'Shortcast', section: 'trending', audio: true, category: 'Philosophy', description: 'Condensed stoic wisdom for modern life. 366 meditations on wisdom, perseverance, and the art of living.', rating: 4.6, duration: '12 min', gradient: 'linear-gradient(135deg, #374151, #f59e0b)' },
+      { id: 'c5', title: 'Designing Your Life', author: 'Bill Burnett', type: 'Blink', section: 'new', audio: false, category: 'Creativity', description: 'Use design thinking to shape your career and build a life that works for you.', rating: 4.5, duration: '14 min', gradient: 'linear-gradient(135deg, #1f2937, #ec4899)' },
+      { id: 'c6', title: 'Psychology of Money', author: 'Morgan Housel', type: 'Blink', section: 'new', audio: true, category: 'Finance', description: 'Timeless lessons on wealth, greed, and happiness. How to think about money.', rating: 4.8, duration: '17 min', gradient: 'linear-gradient(135deg, #374151, #22d3ee)' },
+      { id: 'c7', title: 'The 4-Hour Workweek', author: 'Tim Ferriss', type: 'Blink', section: 'for-you', audio: true, category: 'Productivity', description: 'Escape the 9-5, live anywhere, and join the new rich.', rating: 4.4, duration: '19 min', gradient: 'linear-gradient(135deg, #1f2937, #f97316)' },
+      { id: 'c8', title: 'Start With Why', author: 'Simon Sinek', type: 'Shortcast', section: 'trending', audio: true, category: 'Leadership', description: 'How great leaders inspire everyone to take action.', rating: 4.7, duration: '13 min', gradient: 'linear-gradient(135deg, #374151, #6366f1)' }
+    ];
+
+    const categories = ['Productivity', 'Psychology', 'Leadership', 'Health', 'Finance', 'Creativity', 'Philosophy', 'Business'];
+    const speeds = ['1.0x', '1.25x', '1.5x', '1.75x', '2.0x'];
+    const highlights = [
+      { title: 'Atomic Habits', text: 'Small changes compound into remarkable results over time.' },
+      { title: 'Deep Work', text: 'Focus is a superpower in a distracted world.' },
+      { title: 'Think Again', text: 'The mark of a great mind is the ability to change it.' }
+    ];
+    const spaces = [
+      { name: 'Team Learning', items: 12, members: 5 },
+      { name: 'Book Club', items: 8, members: 4 },
+      { name: 'Personal Growth', items: 15, members: 1 }
+    ];
+    const chapters = [
+      { title: 'Introduction', content: 'Big ideas distilled for fast learning. This Blink presents the core insights in clear, short sections designed to be read in about 15 minutes. Focus on what matters most and skip the fluff.' },
+      { title: 'Key Insight #1', content: 'The first key insight explains the main concept with a short, concise paragraph. It emphasizes practical understanding over exhaustive detail, helping you grasp the essence quickly.' },
+      { title: 'Key Insight #2', content: 'The second insight provides a powerful takeaway and a simple example. It keeps the reading experience focused and distraction-free while delivering maximum value.' },
+      { title: 'Key Insight #3', content: 'This insight ties ideas together and suggests how to apply them in your daily life. Supporting quick retention and action is the goal here.' },
+      { title: 'Conclusion', content: 'The final takeaway summarizes everything you\'ve learned and provides actionable next steps. Apply these insights today for lasting change.' }
+    ];
+
+    // State
+    let currentItem = null;
+    let currentChapter = 0;
+    let currentSpeed = '1.5x';
+    let isPlaying = false;
+    let currentFilter = 'all';
+    let activeCategory = null;
+
+    // DOM Elements
+    const tabs = document.querySelectorAll('.tab');
+    const views = document.querySelectorAll('.view');
+    const modal = document.getElementById('detailModal');
+    const reader = document.getElementById('readerOverlay');
+    const player = document.getElementById('playerBar');
+
+    // Helpers
+    const createCard = (item) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-cover" style="background: ${item.gradient}"></div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-author">${item.author}</div>
+        <div class="card-meta">
+          <span class="pill">${item.type === 'Blink' ? '📖' : '🎧'} ${item.type}</span>
+          ${item.audio ? '<span class="pill">🎧</span>' : ''}
+          <span class="rating"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>${item.rating}</span>
+        </div>
+      `;
+      card.addEventListener('click', () => openModal(item));
+      return card;
+    };
+
+    // Tab Navigation
+    const showTab = (tabId) => {
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+      views.forEach(v => v.classList.toggle('active', v.id === tabId));
+    };
+    tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+    document.querySelector('.topbar-actions .icon-btn').addEventListener('click', () => showTab('search'));
+
+    // Populate Carousels
+    ['for-you', 'trending', 'new'].forEach(section => {
+      const carousel = document.getElementById(`carousel-${section === 'for-you' ? 'foryou' : section}`);
+      content.filter(c => c.section === section).forEach(item => carousel.appendChild(createCard(item)));
+    });
+
+    // Categories
+    const catContainer = document.getElementById('categories');
+    categories.forEach(cat => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = cat;
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#categories .chip').forEach(c => c.classList.remove('active'));
+        if (activeCategory === cat) {
+          activeCategory = null;
+        } else {
+          chip.classList.add('active');
+          activeCategory = cat;
+        }
+      });
+      catContainer.appendChild(chip);
+    });
+
+    // Search
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const filters = document.querySelectorAll('.filter');
+
+    const runSearch = () => {
+      const query = searchInput.value.toLowerCase();
+      const results = content.filter(item => {
+        const matchQuery = !query || item.title.toLowerCase().includes(query) || item.author.toLowerCase().includes(query) || item.category.toLowerCase().includes(query);
+        const matchFilter = currentFilter === 'all' || 
+          (currentFilter === 'blink' && item.type === 'Blink') || 
+          (currentFilter === 'shortcast' && item.type === 'Shortcast');
+        return matchQuery && matchFilter;
+      });
+      searchResults.innerHTML = '';
+      results.forEach(item => searchResults.appendChild(createCard(item)));
+    };
+
+    searchInput.addEventListener('input', runSearch);
+    filters.forEach(f => f.addEventListener('click', () => {
+      filters.forEach(x => x.classList.remove('active'));
+      f.classList.add('active');
+      currentFilter = f.dataset.filter;
+      runSearch();
+    }));
+
+    // Library
+    const savedGrid = document.getElementById('savedGrid');
+    const downloadsGrid = document.getElementById('downloadsGrid');
+    const highlightsList = document.getElementById('highlightsList');
+
+    content.slice(0, 4).forEach(item => savedGrid.appendChild(createCard(item)));
+    content.filter(c => c.audio).slice(0, 3).forEach(item => downloadsGrid.appendChild(createCard(item)));
+    highlights.forEach(h => {
+      const div = document.createElement('div');
+      div.className = 'highlight-item';
+      div.innerHTML = `<h4>${h.title}</h4><p>"${h.text}"</p>`;
+      highlightsList.appendChild(div);
+    });
+
+    // Spaces
+    const spacesList = document.getElementById('spacesList');
+    spaces.forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'space-card';
+      div.innerHTML = `
+        <h3>${s.name}</h3>
+        <div class="space-meta">
+          <span>📁 ${s.items} items</span>
+          <span>👥 ${s.members} ${s.members === 1 ? 'member' : 'members'}</span>
+        </div>
+        <div class="space-actions">
+          <button class="btn-secondary">📂 Open</button>
+          <button class="btn-secondary">👤+ Invite</button>
+        </div>
+      `;
+      spacesList.appendChild(div);
+    });
+
+    // Profile Speed Options
+    const speedOptions = document.getElementById('speedOptions');
+    speeds.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'speed-btn' + (s === currentSpeed ? ' active' : '');
+      btn.textContent = s;
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSpeed = s;
+        updatePlayerSpeed();
+      });
+      speedOptions.appendChild(btn);
+    });
+
+    // Player Speed
+    const playerSpeedContainer = document.getElementById('playerSpeed');
+    const updatePlayerSpeed = () => {
+      playerSpeedContainer.innerHTML = '';
+      speeds.forEach(s => {
+        const chip = document.createElement('button');
+        chip.className = 'speed-chip' + (s === currentSpeed ? ' active' : '');
+        chip.textContent = s;
+        chip.addEventListener('click', () => {
+          currentSpeed = s;
+          updatePlayerSpeed();
+          document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b.textContent === s));
+        });
+        playerSpeedContainer.appendChild(chip);
+      });
+    };
+    updatePlayerSpeed();
+
+    // Modal
+    const openModal = (item) => {
+      currentItem = item;
+      document.getElementById('modalCover').style.background = item.gradient;
+      document.getElementById('modalTitle').textContent = item.title;
+      document.getElementById('modalAuthor').textContent = item.author;
+      document.getElementById('modalDescription').textContent = item.description;
+      document.getElementById('modalTags').innerHTML = `
+        <span class="pill">${item.type === 'Blink' ? '📖' : '🎧'} ${item.type}</span>
+        <span class="pill">⏱️ ${item.duration}</span>
+        <span class="pill">⭐ ${item.rating}</span>
+      `;
+      document.getElementById('listenBtn').disabled = !item.audio;
+      document.getElementById('listenBtn').style.opacity = item.audio ? '1' : '0.5';
+      modal.classList.add('open');
+    };
+
+    document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('open'));
+    modal.querySelector('.modal-backdrop').addEventListener('click', () => modal.classList.remove('open'));
+
+    // Reader
+    const openReader = () => {
+      currentChapter = 0;
+      updateReader();
+      reader.classList.add('open');
+      modal.classList.remove('open');
+    };
+
+    const updateReader = () => {
+      const ch = chapters[currentChapter];
+      document.getElementById('readerTitle').textContent = currentItem.title;
+      document.getElementById('readerChapter').textContent = ch.title;
+      document.getElementById('readerContent').innerHTML = `<h2>${ch.title}</h2><p>${ch.content}</p>`;
+      document.getElementById('pageIndicator').textContent = `${currentChapter + 1} / ${chapters.length}`;
+      document.getElementById('readerProgress').style.width = `${((currentChapter + 1) / chapters.length) * 100}%`;
+      document.getElementById('prevChapter').disabled = currentChapter === 0;
+      document.getElementById('nextChapter').disabled = currentChapter === chapters.length - 1;
+    };
+
+    document.getElementById('readBtn').addEventListener('click', openReader);
+    document.getElementById('closeReader').addEventListener('click', () => reader.classList.remove('open'));
+    document.getElementById('prevChapter').addEventListener('click', () => { if (currentChapter > 0) { currentChapter--; updateReader(); } });
+    document.getElementById('nextChapter').addEventListener('click', () => { if (currentChapter < chapters.length - 1) { currentChapter++; updateReader(); } });
+
+    // Player
+    const openPlayer = () => {
+      document.getElementById('playerCover').style.background = currentItem.gradient;
+      document.getElementById('playerTitle').textContent = currentItem.title;
+      document.getElementById('playerAuthor').textContent = currentItem.author;
+      player.classList.add('open');
+      modal.classList.remove('open');
+    };
+
+    document.getElementById('listenBtn').addEventListener('click', openPlayer);
+    document.getElementById('closePlayer').addEventListener('click', () => player.classList.remove('open'));
+    document.getElementById('playPauseBtn').addEventListener('click', function() {
+      isPlaying = !isPlaying;
+      this.textContent = isPlaying ? '⏸' : '▶';
+    });
+
+    // Init search
+    runSearch();
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "sc_0_1770590132",
+    "title": "Google",
+    "url": "https://google.com",
+    "icon": "\ud83d\udd0d",
+    "color": "#4285F4",
+    "position": 0
+  },
+  {
+    "id": "sc_1_1770590132",
+    "title": "GitHub",
+    "url": "https://github.com",
+    "icon": "\ud83d\udc19",
+    "color": "#333333",
+    "position": 1
+  },
+  {
+    "id": "sc_2_1770590132",
+    "title": "Stack Overflow",
+    "url": "https://stackoverflow.com",
+    "icon": "\ud83d\udcda",
+    "color": "#F48024",
+    "position": 2
+  },
+  {
+    "id": "sc_3_1770590132",
+    "title": "Reddit",
+    "url": "https://reddit.com",
+    "icon": "\ud83d\udd25",
+    "color": "#FF4500",
+    "position": 3
+  }
+]

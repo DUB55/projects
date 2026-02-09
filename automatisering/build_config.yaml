@@ -1,0 +1,53 @@
+# build_config.yaml
+name: NoordhoffScraper
+version: 1.0.0
+description: Desktop applicatie voor automatisch scrapen van Noordhoff leerstof
+author: Noordhoff Scraper Team
+
+python:
+  version: 3.10
+  include_packages:
+    - PyQt6
+    - playwright
+    - keyring
+    - aiohttp
+    - aiofiles
+    - cryptography
+  
+exclude_packages:
+  - pytest
+  - pylint
+  - mypy
+  - black
+
+include_files:
+  - config/example_config.json:config/
+  - README.md:.
+  - LICENSE:.
+
+exclude_files:
+  - .git
+  - __pycache__
+  - *.pyc
+  - tests/
+  - venv/
+
+hidden_imports:
+  - PyQt6.QtCore
+  - PyQt6.QtGui
+  - PyQt6.QtWidgets
+  - playwright._impl._browser_type
+  - keyring.backends.Windows
+  - cryptography.hazmat.backends.openssl
+
+runtime_hooks:
+  - hooks/hook-playwright.py
+  - hooks/hook-PyQt6.py
+
+binaries:
+  - path: playwright/driver
+    dest: playwright/driver
+
+datas:
+  - path: playwright/browsers
+    dest: playwright/browsers

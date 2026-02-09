@@ -1,0 +1,238 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACOM Website‑Only Standalone</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#10161c; --border:#1f2937; --text:#e6edf3; --accent:#2d6cdf; --accent2:#3b82f6; --muted:#9fb0c6; --ok:#22c55e; --warn:#f59e0b; }
+    *{box-sizing:border-box}
+    body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0}
+    .container{max-width:980px;margin:0 auto;padding:24px}
+    h1{margin:0 0 12px}
+    .tabs{display:flex;gap:8px;margin:12px 0}
+    .tab{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
+    .tab.active{background:var(--accent);color:#fff;border-color:transparent}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:8px}
+    .hidden{display:none}
+    .row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+    label{min-width:120px}
+    input[type="text"]{flex:1;min-width:240px;background:#0b1220;color:#e6edf3;border:1px solid var(--border);border-radius:8px;padding:8px}
+    input[type="file"]{color:var(--text)}
+    .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn:hover{background:var(--accent2)}
+    .log{margin-top:10px;display:flex;flex-direction:column-reverse;gap:6px}
+    .badge{display:inline-block;font-size:.8rem;border-radius:999px;padding:4px 10px;margin-left:8px;border:1px solid var(--border)}
+    .badge.info{background:#0b1220;color:var(--muted)}
+    .badge.ok{background:#0f1f17;color:var(--ok);border-color:#14532d}
+    .badge.warn{background:#1f1b12;color:var(--warn);border-color:#7c5a10}
+    .progress{height:8px;background:#0b1220;border:1px solid var(--border);border-radius:999px;margin-top:8px;overflow:hidden}
+    .progress .bar{height:100%;width:0%;background:var(--accent)}
+    .code-badge{margin-left:12px;padding:8px 14px;border-radius:10px;border:1px dashed var(--border);background:#0b1220;font-weight:700;letter-spacing:2px;min-width:120px;text-align:center}
+    .note{margin-top:16px;font-size:.95rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ACOM Website‑Only Standalone</h1>
+    <p>Peer‑to‑peer sharing in the browser. Host generates a 6‑digit PIN. Guest enters the PIN to connect. No local server.</p>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-host" onclick="setTab('host')">Host</button>
+      <button class="tab" id="tab-guest" onclick="setTab('guest')">Guest</button>
+    </div>
+
+    <section id="host-panel" class="panel">
+      <h2>Host <span id="host-status" class="badge info">idle</span></h2>
+      <div class="row">
+        <button class="btn" onclick="hostStart()">Start Session</button>
+        <div id="host-code" class="code-badge"></div>
+      </div>
+      <div class="row">
+        <label>Send Text</label>
+        <input id="host-text" type="text" placeholder="Message">
+        <button class="btn" onclick="sendText('host')" disabled id="host-send-btn">Send</button>
+      </div>
+      <div class="row">
+        <label>Send File</label>
+        <input id="host-file" type="file">
+        <button class="btn" onclick="sendFile('host')" disabled id="host-file-btn">Send File</button>
+      </div>
+      <div class="progress"><div id="host-progress-bar" class="bar"></div></div>
+      <div class="log" id="host-log"></div>
+    </section>
+
+    <section id="guest-panel" class="panel hidden">
+      <h2>Guest <span id="guest-status" class="badge info">idle</span></h2>
+      <div class="row">
+        <label>Enter PIN</label>
+        <input id="guest-pin" type="text" placeholder="6 digits">
+        <button class="btn" onclick="guestConnect()">Connect</button>
+      </div>
+      <div class="row">
+        <label>Send Text</label>
+        <input id="guest-text" type="text" placeholder="Message">
+        <button class="btn" onclick="sendText('guest')" disabled id="guest-send-btn">Send</button>
+      </div>
+      <div class="row">
+        <label>Send File</label>
+        <input id="guest-file" type="file">
+        <button class="btn" onclick="sendFile('guest')" disabled id="guest-file-btn">Send File</button>
+      </div>
+      <div class="progress"><div id="guest-progress-bar" class="bar"></div></div>
+      <div class="log" id="guest-log"></div>
+    </section>
+
+    <div class="note">
+      <p>Notes: Uses a public PeerJS signaling server to find each other; data transfers are peer‑to‑peer over encrypted WebRTC. No files are stored online by this page.</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script>
+    const state = {
+      host: { peer: null, conn: null, statusEl: null, progressEl: null },
+      guest: { peer: null, conn: null, statusEl: null, progressEl: null },
+    };
+
+    function setTab(tab) {
+      document.getElementById('tab-host').classList.toggle('active', tab === 'host');
+      document.getElementById('tab-guest').classList.toggle('active', tab === 'guest');
+      document.getElementById('host-panel').classList.toggle('hidden', tab !== 'host');
+      document.getElementById('guest-panel').classList.toggle('hidden', tab !== 'guest');
+    }
+
+    function updateStatus(side, s) {
+      const el = side === 'host' ? state.host.statusEl : state.guest.statusEl;
+      if (!el) return;
+      el.textContent = s;
+      el.className = 'badge ' + (s === 'connected' ? 'ok' : s === 'closed' ? 'warn' : 'info');
+    }
+
+    function setSendEnabled(side, on) {
+      document.getElementById(side + '-send-btn').disabled = !on;
+      document.getElementById(side + '-file-btn').disabled = !on;
+    }
+
+    function log(side, msg) {
+      const el = document.getElementById(side === 'host' ? 'host-log' : 'guest-log');
+      const div = document.createElement('div');
+      div.textContent = msg;
+      el.prepend(div);
+    }
+
+    function hostStart() {
+      state.host.statusEl = document.getElementById('host-status');
+      state.host.progressEl = document.getElementById('host-progress-bar');
+      const pin = String(Math.floor(100000 + Math.random() * 900000));
+      document.getElementById('host-code').textContent = pin;
+      const id = 'acom-' + pin;
+      const peer = new Peer(id, { host: 'peerjs.com', port: 443, path: '/', secure: true });
+      state.host.peer = peer;
+      peer.on('open', () => {
+        updateStatus('host', 'waiting');
+        log('host', 'Waiting for guest… PIN ' + pin);
+      });
+      peer.on('connection', (conn) => setupConn('host', conn));
+      peer.on('error', (err) => { log('host', 'Error: ' + err); updateStatus('host', 'closed'); });
+      peer.on('disconnected', () => { updateStatus('host', 'closed'); setSendEnabled('host', false); });
+    }
+
+    function guestConnect() {
+      state.guest.statusEl = document.getElementById('guest-status');
+      state.guest.progressEl = document.getElementById('guest-progress-bar');
+      const pin = document.getElementById('guest-pin').value.trim();
+      if (!pin || pin.length !== 6) { log('guest', 'Enter a 6‑digit PIN'); return; }
+      const peer = new Peer(undefined, { host: 'peerjs.com', port: 443, path: '/', secure: true });
+      state.guest.peer = peer;
+      peer.on('open', (id) => {
+        const target = 'acom-' + pin;
+        const conn = peer.connect(target, { reliable: true });
+        conn.on('open', () => setupConn('guest', conn));
+        conn.on('error', (err) => { log('guest', 'Conn error: ' + err); });
+      });
+      peer.on('error', (err) => { log('guest', 'Error: ' + err); updateStatus('guest', 'closed'); });
+      peer.on('disconnected', () => { updateStatus('guest', 'closed'); setSendEnabled('guest', false); });
+    }
+
+    function setupConn(side, conn) {
+      if (side === 'host') state.host.conn = conn; else state.guest.conn = conn;
+      updateStatus(side, 'connected');
+      setSendEnabled(side, true);
+      log(side, 'Connected');
+      conn.on('data', (data) => handleIncoming(side, data));
+      conn.on('close', () => { updateStatus(side, 'closed'); setSendEnabled(side, false); log(side, 'Disconnected'); });
+      conn.on('error', (e) => { log(side, 'Conn error: ' + e); });
+    }
+
+    function handleIncoming(side, data) {
+      if (data && data.type === 'file-meta') {
+        const ctx = side === 'host' ? state.host : state.guest;
+        ctx.incoming = { name: data.name, size: data.size, received: 0, chunks: [] };
+        log(side, 'Receiving file: ' + data.name + ' (' + data.size + ' bytes)');
+        return;
+      }
+      if (data && data.type === 'file-chunk') {
+        const ctx = side === 'host' ? state.host : state.guest;
+        if (!ctx.incoming) return;
+        ctx.incoming.chunks.push(data.payload);
+        ctx.incoming.received += data.payload.length;
+        if (ctx.progressEl && ctx.incoming.size > 0) {
+          const pct = Math.floor((ctx.incoming.received / ctx.incoming.size) * 100);
+          ctx.progressEl.style.width = pct + '%';
+        }
+        return;
+      }
+      if (data && data.type === 'file-end') {
+        const ctx = side === 'host' ? state.host : state.guest;
+        if (!ctx.incoming) return;
+        const blob = new Blob(ctx.incoming.chunks);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = ctx.incoming.name || 'download.bin';
+        a.textContent = 'Download ' + (ctx.incoming.name || 'file');
+        const logEl = document.getElementById(side === 'host' ? 'host-log' : 'guest-log');
+        logEl.prepend(a);
+        log(side, 'File received');
+        ctx.progressEl.style.width = '0%';
+        ctx.incoming = null;
+        return;
+      }
+      if (typeof data === 'string') {
+        log(side, 'Peer: ' + data);
+      }
+    }
+
+    function sendText(side) {
+      const conn = side === 'host' ? state.host.conn : state.guest.conn;
+      if (!conn || conn.open !== true) return;
+      const input = document.getElementById(side + '-text');
+      const text = input.value;
+      if (!text) return;
+      conn.send(text);
+      log(side, 'You: ' + text);
+      input.value = '';
+    }
+
+    async function sendFile(side) {
+      const conn = side === 'host' ? state.host.conn : state.guest.conn;
+      if (!conn || conn.open !== true) return;
+      const input = document.getElementById(side + '-file');
+      const file = input.files[0];
+      if (!file) return;
+      conn.send({ type: 'file-meta', name: file.name, size: file.size });
+      const chunkSize = 64 * 1024;
+      let offset = 0;
+      while (offset < file.size) {
+        const slice = file.slice(offset, offset + chunkSize);
+        const buf = new Uint8Array(await slice.arrayBuffer());
+        conn.send({ type: 'file-chunk', payload: buf });
+        offset += chunkSize;
+      }
+      conn.send({ type: 'file-end' });
+      log(side, 'File sent: ' + file.name);
+      input.value = '';
+    }
+  </script>
+</body>
+</html>

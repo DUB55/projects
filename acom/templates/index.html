@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=2">
+  <link rel="stylesheet" href="/static/css/vendor/highlight.min.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Shared Dashboard</h1>
+      <nav>
+        <button type="button" id="tab-explorer" class="tab active" onclick="setTab('explorer')">Explorer</button>
+        <button type="button" id="tab-texts" class="tab" onclick="setTab('texts')">Shared Texts</button>
+      </nav>
+    </header>
+
+    <section id="explorer" class="panel">
+      <div class="toolbar">
+        <input id="search-input" type="text" placeholder="Search files..." />
+        <select id="sort-select">
+          <option value="name">Name</option>
+          <option value="type">Type</option>
+          <option value="size">Size</option>
+          <option value="time">Time</option>
+        </select>
+        <button id="refresh-explorer" class="action-btn" title="Refresh">↻</button>
+      </div>
+      
+      <div id="bulk-actions-roots" class="toolbar bulk-toolbar hidden">
+        <span>Selected: <span id="selected-count-roots">0</span></span>
+        <div class="bulk-actions-group">
+          <button onclick="bulkExtend('roots', 60)">+1h</button>
+          <button onclick="bulkExtend('roots', 1440)">+24h</button>
+          <button onclick="bulkDelete('roots')" class="danger">Delete</button>
+        </div>
+      </div>
+
+      <div id="roots"></div>
+      <div id="tree" class="hidden">
+        <div class="breadcrumbs">
+          <button id="back-to-roots">Back</button>
+          <span id="current-path"></span>
+          <a id="zip-current" class="link-button" href="#">Zip & Download</a>
+        </div>
+        <ul id="entries"></ul>
+        <div id="file-view" class="hidden">
+          <div class="file-header">
+            <span id="file-name"></span>
+            <button id="toggle-source" class="hidden">View Source</button>
+            <a id="download-file" class="link-button" href="#" download>Download</a>
+            <button id="copy-file">Copy</button>
+            <button id="close-file">Close</button>
+          </div>
+          <div id="viewer">
+            <img id="image-view" class="hidden" />
+            <iframe id="html-view" class="hidden" sandbox="allow-scripts"></iframe>
+            <div id="markdown-view" class="hidden markdown-body"></div>
+            <pre id="code-view" class="hidden"><code id="code-content"></code></pre>
+            <pre id="file-content" class="hidden"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="texts" class="panel hidden">
+      <div class="toolbar">
+        <input id="search-texts" type="text" placeholder="Search shared texts..." />
+        <select id="sort-texts">
+          <option value="name">Name</option>
+          <option value="type">Type</option>
+          <option value="size">Size</option>
+          <option value="time">Time</option>
+        </select>
+        <button id="refresh-texts" class="action-btn refresh-btn" title="Refresh">↻</button>
+      </div>
+
+      <div id="bulk-actions-texts" class="toolbar bulk-toolbar hidden">
+        <span>Selected: <span id="selected-count-texts">0</span></span>
+        <div class="bulk-actions-group">
+          <button onclick="bulkExtend('texts', 60)">+1h</button>
+          <button onclick="bulkExtend('texts', 1440)">+24h</button>
+          <button onclick="bulkDelete('texts')" class="danger">Delete</button>
+        </div>
+      </div>
+
+      <ul id="texts-list"></ul>
+      <div id="text-view" class="hidden">
+        <div class="text-header">
+          <span id="text-name"></span>
+          <button id="copy-text">Copy</button>
+          <button id="close-text">Close</button>
+        </div>
+        <div id="text-meta"></div>
+        <pre id="text-content"></pre>
+      </div>
+    </section>
+  </div>
+  <script src="/static/js/app.js?v=2"></script>
+  <script src="/static/js/vendor/highlight.min.js"></script>
+</body>
+</html>
