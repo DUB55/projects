@@ -27,8 +27,7 @@ export function Navbar() {
     )}>
       <div className="flex items-center gap-10">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 shadow-lg shadow-blue-500/20" />
-          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Aether</span>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 dark:from-slate-200 dark:via-slate-100 dark:to-white shadow-lg shadow-slate-500/20" />
         </Link>
         
         <div className="hidden md:flex items-center gap-8">

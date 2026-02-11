@@ -9,6 +9,7 @@ export interface Project {
   knowledge?: Record<string, string>; // name -> content
   chatHistory: any[];
   previewUrl?: string;
+  history?: any[];
   settings?: {
     supabaseUrl?: string;
     supabaseAnonKey?: string;

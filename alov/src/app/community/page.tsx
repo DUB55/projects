@@ -17,7 +17,9 @@ import { cn } from "@/lib/utils"
 export default function CommunityPage() {
   return (
     <div className="relative min-h-screen selection:bg-primary/30 text-foreground">
-      <div className="landing-bg fixed inset-0 z-0" />
+      <div className="page-bg fixed inset-0 z-0">
+        <div className="gradient-blob subpage-gradient" />
+      </div>
       <Navbar />
       
       <main className="relative z-10 pt-32 pb-20 px-6 max-w-5xl mx-auto">

@@ -70,7 +70,7 @@ interface TreeNode {
 export default function HomePage() {
   const router = useRouter()
   const [showApp, setShowApp] = useState(false)
-  const [gradientTheme, setGradientTheme] = useState<'blue' | 'pink' | 'emerald' | 'sunset' | 'sea' | 'purple' | 'midnight' | 'amber'>('blue')
+  const [gradientTheme, setGradientTheme] = useState<'blue' | 'pink'>('blue')
   const [executionMode, setExecutionMode] = useState<'plan' | 'fast'>('fast')
   const [streamingText, setStreamingText] = useState("")
   const [input, setInput] = useState("")
@@ -112,22 +112,22 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('aether-gradient-theme') as any
-    const validThemes = ['blue', 'pink', 'emerald', 'sunset', 'sea', 'purple', 'midnight', 'amber']
-    if (savedTheme && validThemes.includes(savedTheme)) {
+    const savedTheme = localStorage.getItem('aether-gradient-theme') as 'blue' | 'pink'
+    if (savedTheme && (savedTheme === 'blue' || savedTheme === 'pink')) {
       setGradientTheme(savedTheme)
+      // Ensure attribute is set even if layout script missed it
       document.documentElement.setAttribute('data-gradient-theme', savedTheme)
     }
   }, [])
 
-  const handleGradientChange = (theme: 'blue' | 'pink' | 'emerald' | 'sunset' | 'sea' | 'purple' | 'midnight' | 'amber') => {
+  const handleGradientChange = (theme: 'blue' | 'pink') => {
     setGradientTheme(theme)
     localStorage.setItem('aether-gradient-theme', theme)
     document.documentElement.setAttribute('data-gradient-theme', theme)
+    // Also update class on landing-bg for immediate transition if it exists
     const landingBg = document.querySelector('.landing-bg')
     if (landingBg) {
-      const validThemes = ['blue', 'pink', 'emerald', 'sunset', 'sea', 'purple', 'midnight', 'amber']
-      validThemes.forEach(t => landingBg.classList.remove(`gradient-${t}`))
+      landingBg.classList.remove('gradient-blue', 'gradient-pink')
       landingBg.classList.add(`gradient-${theme}`)
     }
   }
@@ -138,11 +138,10 @@ export default function HomePage() {
       id,
       name: prompt.slice(0, 30) || "Untitled Project",
       lastModified: Date.now(),
-      files: {}, // Start with empty files
+      files: {},
       chatHistory: [{ role: "user", content: prompt }]
     }
     await storage.saveProject(newProject)
-    console.log("[Landing] CreatedProject", { id, name: newProject.name, prompt })
     router.push(`/editor/${id}`)
   }
 
@@ -150,8 +149,6 @@ export default function HomePage() {
     e?.preventDefault()
     const trimmed = input.trim()
     if (!trimmed) return
-    setBusy(true)
-    console.log("[Landing] StartProject", { prompt: trimmed })
     handleStartProject(trimmed)
   }
 
@@ -258,10 +255,12 @@ export default function HomePage() {
             <div 
               suppressHydrationWarning
               className={cn(
-                "landing-bg",
-                `gradient-${gradientTheme}`
+                "page-bg",
+                gradientTheme === 'blue' ? "gradient-blue" : "gradient-pink"
               )} 
-            />
+            >
+              <div className="gradient-blob landing-gradient" />
+            </div>
             <Navbar />
             <motion.main
               key="landing"
@@ -291,7 +290,7 @@ export default function HomePage() {
                   className="text-6xl md:text-[84px] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.05] mb-6"
                 >
                   Build the future <br />
-                  <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">with Aether</span>
+                  <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">with Aether AI</span>
                 </motion.h1>
 
                 <motion.p
@@ -330,8 +329,7 @@ export default function HomePage() {
                           <PopoverTrigger asChild>
                             <button 
                             type="button" 
-                            disabled={busy}
-                            className="text-slate-400 dark:text-white/40 p-2 rounded-full cursor-pointer hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                            className="text-slate-400 dark:text-white/40 p-2 rounded-full cursor-pointer hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors"
                           >
                             <Plus className="w-6 h-6 stroke-[2.5px]" />
                           </button>
@@ -370,89 +368,87 @@ export default function HomePage() {
                         </Popover>
                       </div>
                       <div className="flex items-center gap-8">
-                        <div className="flex bg-slate-100/80 dark:bg-white/5 p-1 rounded-xl border border-slate-200/50 dark:border-white/5 backdrop-blur-sm gap-0.5">
-                          {[
-                            { id: 'blue', color: 'from-blue-400 to-purple-500', title: 'Blue' },
-                            { id: 'pink', color: 'from-pink-400 to-orange-400', title: 'Pink' },
-                            { id: 'emerald', color: 'from-emerald-400 to-teal-500', title: 'Emerald' },
-                            { id: 'sunset', color: 'from-orange-500 to-rose-500', title: 'Sunset' },
-                            { id: 'sea', color: 'from-cyan-400 to-blue-600', title: 'Sea' },
-                            { id: 'purple', color: 'from-violet-500 to-fuchsia-500', title: 'Purple' },
-                            { id: 'midnight', color: 'from-slate-700 to-slate-900', title: 'Midnight' },
-                            { id: 'amber', color: 'from-amber-400 to-yellow-600', title: 'Amber' },
-                          ].map((theme) => (
-                            <button
-                              key={theme.id}
-                              type="button"
-                              onClick={() => handleGradientChange(theme.id as any)}
-                              className={cn(
-                                "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                                gradientTheme === theme.id 
-                                  ? "bg-white dark:bg-white/10 shadow-sm ring-1 ring-slate-200 dark:ring-white/20" 
-                                  : "opacity-40 hover:opacity-100"
-                              )}
-                              title={`${theme.title} Gradient`}
-                            >
-                              <div className={cn("w-3.5 h-3.5 rounded-full bg-gradient-to-br", theme.color)} />
-                            </button>
-                          ))}
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button 
-                              type="button" 
-                              disabled={busy}
-                              className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white/80 cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                {executionMode === 'plan' ? (
-                                  <><ClipboardList className="w-4 h-4" /> Plan</>
-                                ) : (
-                                  <><Zap className="w-4 h-4" /> Fast</>
-                                )}
-                                <ChevronDown className="w-3 h-3 opacity-50" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56 p-1.5 bg-white dark:bg-[#1a1a1a]/95 border-slate-200/60 dark:border-white/10 rounded-2xl shadow-xl backdrop-blur-3xl" align="end">
-                              <DropdownMenuItem 
-                                onClick={() => setExecutionMode('plan')}
-                                className={cn(
-                                  "flex flex-col items-start gap-0.5 p-3 cursor-pointer rounded-xl transition-colors",
-                                  executionMode === 'plan' ? "bg-slate-200 dark:bg-white/10" : "hover:bg-slate-200 dark:hover:bg-white/5"
-                                )}
-                              >
-                                <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                                  <ClipboardList className="w-4 h-4 text-primary" /> Plan
-                                </div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400">AI creates a structured plan before executing</div>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => setExecutionMode('fast')}
-                                className={cn(
-                                  "flex flex-col items-start gap-0.5 p-3 cursor-pointer rounded-xl mt-1 transition-colors",
-                                  executionMode === 'fast' ? "bg-slate-200 dark:bg-white/10" : "hover:bg-slate-200 dark:hover:bg-white/5"
-                                )}
-                              >
-                                <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                                  <Zap className="w-4 h-4 text-amber-500" /> Fast
-                                </div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400">AI immediately executes without planning</div>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          <button 
-                            type="submit" 
+                        <div className="flex bg-slate-100/80 dark:bg-white/5 p-1 rounded-xl border border-slate-200/50 dark:border-white/5 backdrop-blur-sm">
+                          <button
+                            type="button"
+                            onClick={() => handleGradientChange('blue')}
                             className={cn(
-                              "bg-slate-100 dark:bg-[#333333] text-slate-500 dark:text-slate-400 rounded-full w-11 h-11 flex items-center justify-center cursor-pointer",
-                              (input.trim() || busy) && "bg-[#111] dark:bg-white text-white dark:text-black"
+                              "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                              gradientTheme === 'blue' 
+                                ? "bg-white dark:bg-white/10 shadow-sm ring-1 ring-slate-200 dark:ring-white/20" 
+                                : "opacity-50 hover:opacity-100"
                             )}
-                            disabled={!input.trim() || busy}
+                            title="Blue Gradient"
                           >
-                            {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5 stroke-[3px]" />}
+                            <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-500" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleGradientChange('pink')}
+                            className={cn(
+                              "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                              gradientTheme === 'pink' 
+                                ? "bg-white dark:bg-white/10 shadow-sm ring-1 ring-slate-200 dark:ring-white/20" 
+                                : "opacity-50 hover:opacity-100"
+                            )}
+                            title="Pink Gradient"
+                          >
+                            <div className="w-4 h-4 rounded-full bg-gradient-to-br from-pink-400 to-orange-400" />
                           </button>
                         </div>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button 
+                            type="button" 
+                            className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white/80 cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 px-3 py-1.5 rounded-xl transition-colors"
+                          >
+                              {executionMode === 'plan' ? (
+                                <><ClipboardList className="w-4 h-4" /> Plan</>
+                              ) : (
+                                <><Zap className="w-4 h-4" /> Fast</>
+                              )}
+                              <ChevronDown className="w-3 h-3 opacity-50" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-56 p-1.5 bg-white dark:bg-[#1a1a1a]/95 border-slate-200/60 dark:border-white/10 rounded-2xl shadow-xl backdrop-blur-3xl" align="end">
+                            <DropdownMenuItem 
+                              onClick={() => setExecutionMode('plan')}
+                              className={cn(
+                                "flex flex-col items-start gap-0.5 p-3 cursor-pointer rounded-xl transition-colors",
+                                executionMode === 'plan' ? "bg-slate-200 dark:bg-white/10" : "hover:bg-slate-200 dark:hover:bg-white/5"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                                <ClipboardList className="w-4 h-4 text-primary" /> Plan
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">AI creates a structured plan before executing</div>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => setExecutionMode('fast')}
+                              className={cn(
+                                "flex flex-col items-start gap-0.5 p-3 cursor-pointer rounded-xl mt-1 transition-colors",
+                                executionMode === 'fast' ? "bg-slate-200 dark:bg-white/10" : "hover:bg-slate-200 dark:hover:bg-white/5"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                                <Zap className="w-4 h-4 text-amber-500" /> Fast
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">AI immediately executes without planning</div>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <button 
+                          type="submit" 
+                          className={cn(
+                            "bg-slate-100 dark:bg-[#333333] text-slate-500 dark:text-slate-400 rounded-full w-11 h-11 flex items-center justify-center cursor-pointer",
+                            (input.trim() || busy) && "bg-[#111] dark:bg-white text-white dark:text-black"
+                          )}
+                          disabled={!input.trim() || busy}
+                        >
+                          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5 stroke-[3px]" />}
+                        </button>
                       </div>
                     </div>
                   </form>
@@ -539,13 +535,13 @@ export default function HomePage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                className="relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-slate-500/10 via-slate-600/10 to-slate-700/10 border border-white/10 p-12 text-center liquid-glass"
+                className="relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-pink-600/10 border border-white/10 p-12 text-center liquid-glass"
               >
                 <div className="max-w-2xl mx-auto space-y-6">
                   <h2 className="text-4xl font-bold text-slate-900 dark:text-white">Ready to start building?</h2>
                   <p className="text-slate-600 dark:text-slate-300">Join thousands of creators who are already building the future of the web with Aether.</p>
                   <Button 
-                    onClick={() => handleStartProject("New Application")}
+                    onClick={() => setShowApp(true)}
                     className="bg-slate-900 dark:bg-white text-white dark:text-black rounded-full px-8 py-6 text-lg font-bold shadow-xl active:scale-[0.98] hover:bg-slate-800 dark:hover:bg-slate-100 transition-all"
                   >
                     Launch Aether Editor
@@ -685,10 +681,10 @@ export default function HomePage() {
                       {busy && (
                         <div className="flex w-full justify-start">
                           <div className="rounded-2xl py-1 text-sm">
-                            <div className="flex gap-1.5">
-                              <span className="w-1.5 h-1.5 bg-slate-400 dark:bg-white/60 rounded-full animate-bounce-intense" />
-                              <span className="w-1.5 h-1.5 bg-slate-400 dark:bg-white/60 rounded-full animate-bounce-intense [animation-delay:0.1s]" />
-                              <span className="w-1.5 h-1.5 bg-slate-400 dark:bg-white/60 rounded-full animate-bounce-intense [animation-delay:0.2s]" />
+                            <div className="flex gap-1">
+                              <span className="w-1.5 h-1.5 bg-blue-400/50 rounded-full animate-bounce" />
+                              <span className="w-1.5 h-1.5 bg-blue-400/50 rounded-full animate-bounce [animation-delay:0.2s]" />
+                              <span className="w-1.5 h-1.5 bg-blue-400/50 rounded-full animate-bounce [animation-delay:0.4s]" />
                             </div>
                           </div>
                         </div>

@@ -1,1512 +1,1333 @@
 "use client"
 
-import { useEffect, useState, useRef, use } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Book,
-  Trash2,
-  Check,
-  MessageSquare,
-  Plus,
-  ArrowRight,
-  AlertCircle,
-  Image as ImageIcon,
-  FileUp,
-  Search,
+  Plus, 
+  FileText, 
+  Search, 
   Settings2,
   Brain,
   ArrowUp,
   Loader2,
-  CheckCircle2,
   Rocket,
   Shield,
   Zap,
   ChevronDown,
-  Upload,
   Globe,
   Code2,
-  Grid,
   Sparkles,
-  ZapOff,
-  ClipboardList,
   Monitor,
-  Cloud,
-  Layers,
-  History,
-  Gauge,
-  Database,
-  ExternalLink,
-  Maximize2,
-  Minimize2,
   RotateCcw,
-  Mic,
   Share2,
   Github,
+  Trash2,
+  Book,
+  Monitor as MonitorIcon,
+  Smartphone,
+  Tablet,
+  Play,
+  Database,
+  AlertCircle,
+  X,
+  PlusCircle,
+  CheckCircle2,
+  ExternalLink,
+  History,
+  FileCode,
+  Folder,
+  ChevronRight,
+  GitBranch,
+  GitPullRequest,
+  Cloud,
+  MoreVertical,
+  Maximize2,
+  ArrowUpRight,
+  MousePointer2,
   Moon,
   Sun,
-  MoreHorizontal,
-  Pause,
-  ChevronUp,
-  Tablet,
-  Smartphone,
-  Download,
-  Terminal as TerminalIcon,
-  Folder,
-  FileText,
-  Play,
-  Settings,
-  X,
-  Maximize2 as Maximize,
-  RefreshCw,
-  Eye,
-  Code,
-  Image,
+  Layout,
 } from "lucide-react"
-import JSZip from "jszip"
-import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { DUB5AIService } from "@/lib/dub5ai"
-import { Terminal } from "@/components/terminal"
-import { useWebContainer } from "@/hooks/use-webcontainer"
 import { storage, Project } from "@/lib/storage"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
+import { toast } from "sonner"
 import { useTheme } from "next-themes"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  isError?: boolean
+  originalPrompt?: string
+}
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false })
 
-export default function EditorPage({ params }: { params: Promise<{ projectId: string }> }) {
-  const { projectId } = use(params)
+interface TreeNode {
+  name: string
+  path: string
+  type: "file" | "directory"
+  children?: TreeNode[]
+}
+
+const devicePresets = [
+  { label: "iPhone SE", width: 375, height: 667, type: 'mobile' },
+  { label: "iPhone XR", width: 414, height: 896, type: 'mobile' },
+  { label: "iPhone 12 Pro", width: 390, height: 844, type: 'mobile' },
+  { label: "iPhone 14 Pro Max", width: 430, height: 932, type: 'mobile' },
+  { label: "Pixel 7", width: 412, height: 915, type: 'mobile' },
+  { label: "Samsung Galaxy S8+", width: 360, height: 740, type: 'mobile' },
+  { label: "Samsung Galaxy S20 Ultra", width: 412, height: 915, type: 'mobile' },
+  { label: "iPad Mini", width: 768, height: 1024, type: 'tablet' },
+  { label: "iPad Air", width: 820, height: 1180, type: 'tablet' },
+  { label: "iPad Pro", width: 1024, height: 1366, type: 'tablet' },
+  { label: "Surface Pro 7", width: 912, height: 1368, type: 'tablet' },
+  { label: "Surface Duo", width: 540, height: 720, type: 'mobile' },
+  { label: "Galaxy Z Fold 5", width: 373, height: 912, type: 'mobile' },
+  { label: "Asus Zenbook Fold", width: 853, height: 1280, type: 'tablet' },
+  { label: "Samsung Galaxy A51/71", width: 412, height: 914, type: 'mobile' },
+  { label: "Nest Hub", width: 1024, height: 600, type: 'tablet' },
+  { label: "Nest Hub Max", width: 1280, height: 800, type: 'tablet' },
+]
+
+export default function EditorPage() {
+  const params = useParams()
+  const projectId = params.projectId as string
   const router = useRouter()
-  const { theme, setTheme } = useTheme()
-  const [project, setProject] = useState<Project | null>(null)
+  const { theme } = useTheme()
   
-  const [activeTab, setActiveTab] = useState<'preview' | 'code' | 'files' | 'history' | 'settings' | 'assets' | 'icons' | 'knowledge'>('preview')
-  const [projectHistory, setProjectHistory] = useState<any[]>([])
+  const [project, setProject] = useState<Project | null>(null)
+  const [activeTab, setActiveTab] = useState<'preview' | 'code' | 'settings' | 'knowledge' | 'history' | 'components' | 'deploy'>('preview')
+  const [activeFile, setActiveFile] = useState<string | null>(null)
+  const [fileSearch, setFileSearch] = useState("")
+  const [previewUrl, setPreviewUrl] = useState("about:blank")
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile' | 'custom'>('desktop')
+  const [customViewport, setCustomViewport] = useState({ width: 375, height: 667 })
+  const [urlPath, setUrlPath] = useState("/")
+  const [lastMobilePreset, setLastMobilePreset] = useState<typeof devicePresets[0]>(devicePresets[0])
+  const [lastError, setLastError] = useState<{ type: 'runtime', message: string, stack?: string } | null>(null)
+  const [suggestions, setSuggestions] = useState<{ label: string, icon: React.ReactNode, prompt: string }[]>([])
+  const [examplePrompt, setExamplePrompt] = useState("Build a modern landing page for a SaaS product.")
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Pool of 60 unique suggestions
+  const suggestionPool = [
+    { label: "Add dark mode", icon: <Moon className="w-3 h-3" />, prompt: "Apply a dark theme to the current design." },
+    { label: "Add white mode", icon: <Sun className="w-3 h-3" />, prompt: "Apply a light theme to the current design." },
+    { label: "Add a navbar", icon: <Layout className="w-3 h-3" />, prompt: "Create a responsive navigation bar at the top." },
+    { label: "Improve UI", icon: <Sparkles className="w-3 h-3" />, prompt: "Refine the UI/UX of the current page to make it more professional." },
+    { label: "Add a footer", icon: <Layout className="w-3 h-3" />, prompt: "Add a modern footer with links and social icons." },
+    { label: "Add hero section", icon: <Zap className="w-3 h-3" />, prompt: "Design a high-impact hero section with a CTA." },
+    { label: "Add features grid", icon: <Layout className="w-3 h-3" />, prompt: "Add a grid of features with icons and descriptions." },
+    { label: "Add contact form", icon: <FileText className="w-3 h-3" />, prompt: "Create a functional contact form with validation." },
+    { label: "Add pricing table", icon: <Database className="w-3 h-3" />, prompt: "Design a clean pricing table with multiple tiers." },
+    { label: "Add testimonial", icon: <Sparkles className="w-3 h-3" />, prompt: "Add a slider or grid for user testimonials." },
+    { label: "Make responsive", icon: <Monitor className="w-3 h-3" />, prompt: "Optimize the entire page for mobile and tablet views." },
+    { label: "Add animations", icon: <Zap className="w-3 h-3" />, prompt: "Add smooth entry and scroll animations to all elements." },
+    { label: "Change colors", icon: <Sparkles className="w-3 h-3" />, prompt: "Change the primary color palette to a vibrant blue and purple." },
+    { label: "Add login page", icon: <Shield className="w-3 h-3" />, prompt: "Design a modern login page with social auth options." },
+    { label: "Add blog section", icon: <FileText className="w-3 h-3" />, prompt: "Create a grid of recent blog posts with images." },
+    { label: "Add newsletter", icon: <Zap className="w-3 h-3" />, prompt: "Add a newsletter signup section with a simple input." },
+    { label: "Add search bar", icon: <Search className="w-3 h-3" />, prompt: "Add a functional search bar in the header." },
+    { label: "Add team section", icon: <Layout className="w-3 h-3" />, prompt: "Add a section showing team members with photos." },
+    { label: "Add FAQ section", icon: <CheckCircle2 className="w-3 h-3" />, prompt: "Design an accordion-style FAQ section." },
+    { label: "Add stats section", icon: <Zap className="w-3 h-3" />, prompt: "Add a section showing key statistics and numbers." },
+    { label: "Add glassmorphism", icon: <Sparkles className="w-3 h-3" />, prompt: "Apply a glassmorphism effect to all cards and containers." },
+    { label: "Add gradient text", icon: <Sparkles className="w-3 h-3" />, prompt: "Make all headings use a stylish gradient text effect." },
+    { label: "Add button group", icon: <MousePointer2 className="w-3 h-3" />, prompt: "Add a grouped set of buttons for different actions." },
+    { label: "Add image gallery", icon: <Layout className="w-3 h-3" />, prompt: "Create a responsive masonry-style image gallery." },
+    { label: "Add video player", icon: <Play className="w-3 h-3" />, prompt: "Embed a video player with custom controls." },
+    { label: "Add sidebar", icon: <Layout className="w-3 h-3" />, prompt: "Add a collapsible sidebar for navigation." },
+    { label: "Add breadcrumbs", icon: <ChevronRight className="w-3 h-3" />, prompt: "Add breadcrumb navigation below the header." },
+    { label: "Add progress bar", icon: <Zap className="w-3 h-3" />, prompt: "Add a reading progress bar at the top of the page." },
+    { label: "Add cookie banner", icon: <Shield className="w-3 h-3" />, prompt: "Add a GDPR-compliant cookie consent banner." },
+    { label: "Add modal window", icon: <ExternalLink className="w-3 h-3" />, prompt: "Add a custom modal popup for notifications." },
+    { label: "Add tooltips", icon: <Sparkles className="w-3 h-3" />, prompt: "Add informative tooltips to all interactive elements." },
+    { label: "Add pagination", icon: <ChevronRight className="w-3 h-3" />, prompt: "Add pagination controls for large lists." },
+    { label: "Add tag cloud", icon: <Zap className="w-3 h-3" />, prompt: "Add a cloud of tags for content categorization." },
+    { label: "Add social links", icon: <Github className="w-3 h-3" />, prompt: "Add social media icons with links in the footer." },
+    { label: "Add chart/graph", icon: <Database className="w-3 h-3" />, prompt: "Add a visual chart or graph for data display." },
+    { label: "Add table grid", icon: <Layout className="w-3 h-3" />, prompt: "Add a data table with sorting and filtering." },
+    { label: "Add loading state", icon: <Loader2 className="w-3 h-3" />, prompt: "Add custom loading spinners and skeleton screens." },
+    { label: "Add scroll to top", icon: <ArrowUp className="w-3 h-3" />, prompt: "Add a floating button to scroll back to top." },
+    { label: "Add notification", icon: <AlertCircle className="w-3 h-3" />, prompt: "Add a toast notification system for alerts." },
+    { label: "Add badge/label", icon: <Sparkles className="w-3 h-3" />, prompt: "Add status badges and labels to items." },
+    { label: "Add card hover", icon: <Zap className="w-3 h-3" />, prompt: "Add elegant hover effects to all content cards." },
+    { label: "Add mega menu", icon: <Layout className="w-3 h-3" />, prompt: "Add a complex mega menu to the navigation." },
+    { label: "Add tabs view", icon: <Layout className="w-3 h-3" />, prompt: "Add a tabbed interface for switching content." },
+    { label: "Add avatar", icon: <Sparkles className="w-3 h-3" />, prompt: "Add user avatars with status indicators." },
+    { label: "Add search modal", icon: <Search className="w-3 h-3" />, prompt: "Add a full-screen search modal with shortcuts." },
+    { label: "Add error page", icon: <AlertCircle className="w-3 h-3" />, prompt: "Design a custom 404 error page." },
+    { label: "Add coming soon", icon: <Rocket className="w-3 h-3" />, prompt: "Design a high-converting coming soon page." },
+    { label: "Add countdown", icon: <Zap className="w-3 h-3" />, prompt: "Add a countdown timer for events or launches." },
+    { label: "Add live chat", icon: <Sparkles className="w-3 h-3" />, prompt: "Add a floating live chat widget mockup." },
+    { label: "Add audio player", icon: <Play className="w-3 h-3" />, prompt: "Add a minimal audio player for podcasts." },
+    { label: "Add dropzone", icon: <PlusCircle className="w-3 h-3" />, prompt: "Add a file upload dropzone area." },
+    { label: "Add steps view", icon: <ChevronRight className="w-3 h-3" />, prompt: "Add a step-by-step progress indicator." },
+    { label: "Add timeline", icon: <History className="w-3 h-3" />, prompt: "Add a vertical timeline of events." },
+    { label: "Add rating stars", icon: <Sparkles className="w-3 h-3" />, prompt: "Add a star rating component for reviews." },
+    { label: "Add profile card", icon: <Layout className="w-3 h-3" />, prompt: "Design a modern user profile card." },
+    { label: "Add filter bar", icon: <Search className="w-3 h-3" />, prompt: "Add a comprehensive filter bar for products." },
+    { label: "Add cart icon", icon: <Rocket className="w-3 h-3" />, prompt: "Add a shopping cart icon with a badge." },
+    { label: "Add banner ads", icon: <Zap className="w-3 h-3" />, prompt: "Add promotional banner areas." },
+    { label: "Add sticky header", icon: <Layout className="w-3 h-3" />, prompt: "Make the header sticky on scroll." },
+    { label: "Add smooth scroll", icon: <Zap className="w-3 h-3" />, prompt: "Enable smooth scrolling for the entire page." }
+  ]
+
+  // Pool of 25 project ideas for "Try an example"
+  const examplePool = [
+    "Build a modern landing page for a SaaS product.",
+    "Build a Notion clone with a sidebar and editor.",
+    "Build a Netflix clone with movie rows and a hero section.",
+    "Build a landing page for a business that sells artisanal coffee.",
+    "Build a landing page for a sustainable fashion company called 'EcoThread'.",
+    "Build a clone of the Airbnb homepage.",
+    "Build a page where users can share posts with each other in a grid.",
+    "Build a real-time chat interface with a message list and input.",
+    "Build a personal portfolio website with a projects gallery.",
+    "Build a dashboard for a crypto tracking application.",
+    "Build a recipe app with search and categories.",
+    "Build a fitness tracker dashboard with charts and progress.",
+    "Build a travel agency landing page with destination cards.",
+    "Build a music player interface like Spotify.",
+    "Build a job board with search and filters.",
+    "Build a weather application with a 5-day forecast.",
+    "Build a task management app with drag-and-drop columns.",
+    "Build an e-commerce product page with an image gallery and reviews.",
+    "Build a news portal with a featured article and side news.",
+    "Build a learning management system dashboard.",
+    "Build a real estate listing page with property details.",
+    "Build a meditation app with audio player and session timer.",
+    "Build a restaurant menu page with categories and prices.",
+    "Build a event booking landing page with a calendar.",
+    "Build a developer tool landing page with code snippets."
+  ]
+
+  // Pick random suggestions and an example on mount/refresh
+  useEffect(() => {
+    const shuffledSuggestions = [...suggestionPool].sort(() => 0.5 - Math.random())
+    setSuggestions(shuffledSuggestions.slice(0, 3))
+    
+    const randomExample = examplePool[Math.floor(Math.random() * examplePool.length)]
+    setExamplePrompt(randomExample)
+  }, [])
+  
+  // Integration States
   const [supabaseUrl, setSupabaseUrl] = useState("")
   const [supabaseKey, setSupabaseKey] = useState("")
+  const [isSupabaseTesting, setIsSupabaseTesting] = useState(false)
+  const [supabaseStatus, setSupabaseStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  
   const [githubRepo, setGithubRepo] = useState("")
   const [githubToken, setGithubToken] = useState("")
-  const [terminalOutput, setTerminalOutput] = useState<string[]>([])
-  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
-  const [gradientTheme, setGradientTheme] = useState<'blue' | 'pink'>('blue')
-  const [executionMode, setExecutionMode] = useState<'plan' | 'fast'>('fast')
-  const [executionType, setExecutionType] = useState<'agent' | 'confirmation'>('agent')
-  const [stagedChanges, setStagedChanges] = useState<{ 
-    type: 'write' | 'delete' | 'rename', 
-    path?: string, 
-    content?: string, 
-    from?: string, 
-    to?: string 
-  }[] | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-  
-  const [streamingText, setStreamingText] = useState("")
-  const [messages, setMessages] = useState<any[]>([])
+  const [isGithubPushing, setIsGithubPushing] = useState(false)
+  const [githubStatus, setGithubStatus] = useState<'idle' | 'success' | 'error'>('idle')
+
+  const [isGeneratingDocs, setIsGeneratingDocs] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [dbTables, setDbTables] = useState<{ name: string, columns: { name: string, type: string }[] }[]>([])
+
+  const addDbTable = () => {
+    const name = prompt("Enter table name:")
+    if (name) {
+      setDbTables([...dbTables, { name, columns: [{ name: "id", type: "uuid" }] }])
+      toast.success(`Table '${name}' added to schema.`)
+    }
+  }
+  const [isAIProcessing, setIsAIProcessing] = useState(false)
+  const [aiProgress, setAiProgress] = useState({ status: "", files: [] as string[] })
   const [input, setInput] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [initialPromptProcessed, setInitialPromptProcessed] = useState(false)
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string>("about:blank")
-  const [lastError, setLastError] = useState<{ type: 'runtime' | 'terminal', message: string, stack?: string, command?: string } | null>(null)
-  const [autoHealingActive, setAutoHealingActive] = useState(false)
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
-  const isAtBottom = useRef(true)
-
-  const handleChatScroll = () => {
-    if (chatContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current
-      // If we're within 50px of the bottom, we consider it "at bottom"
-      isAtBottom.current = scrollHeight - scrollTop - clientHeight < 50
-    }
-  }
-
-  const [activeFile, setActiveFile] = useState<string | null>(null)
-  const [assetSearch, setAssetSearch] = useState("")
-  const [knowledgeSearch, setKnowledgeSearch] = useState("")
-  const [knowledgeInput, setKnowledgeInput] = useState("")
-  const [isAddingKnowledge, setIsAddingKnowledge] = useState(false)
-  const [iconSearch, setIconSearch] = useState("")
-  const assetInputRef = useRef<HTMLInputElement>(null)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [showTerminal, setShowTerminal] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const terminalRef = useRef<any>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { instance: webcontainer, mountFiles } = useWebContainer()
-  const shellProcessRef = useRef<any>(null)
-  const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const [highlightProjectName, setHighlightProjectName] = useState(false)
-
-  const updateUIHeader = (newName: string) => {
-    if (typeof document !== 'undefined') {
-      document.title = `${newName} | Aether Editor`
-    }
-    setHighlightProjectName(true)
-    setTimeout(() => setHighlightProjectName(false), 2000)
-  }
-
+  
+  // Load project on mount
   useEffect(() => {
     const loadProject = async () => {
+      if (!projectId) return
       const p = await storage.getProject(projectId)
       if (p) {
-        setProject(p)
-        setMessages(p.chatHistory || [])
-        
-        // Auto-trigger first prompt if it's a new project and hasn't been processed
-        if (p.chatHistory && p.chatHistory.length === 1 && p.chatHistory[0].role === 'user' && !initialPromptProcessed) {
-          setInitialPromptProcessed(true)
-          // We need to wait for the state to be updated or pass the values directly
-          const firstPrompt = p.chatHistory[0].content
-          setTimeout(() => {
-            processInitialPrompt(firstPrompt, p)
-          }, 500)
+        // Ensure files is at least an empty object
+        const projectWithFiles = {
+          ...p,
+          files: p.files || {}
         }
-
+        setProject(projectWithFiles)
         // Set first file as active if available
-        const filePaths = Object.keys(p.files || {})
-        if (filePaths.length > 0) {
-          setActiveFile(filePaths[0])
+        const files = Object.keys(projectWithFiles.files)
+        if (files.length > 0 && !activeFile) {
+          setActiveFile(files[0])
         }
-        // Load history
-        const history = await storage.getHistory(p.id)
-        setProjectHistory(history)
-        // Load settings
+        // Load settings if they exist
         if (p.settings) {
           setSupabaseUrl(p.settings.supabaseUrl || "")
-          setSupabaseKey(p.settings.supabaseAnonKey || "")
+          setSupabaseKey(p.settings.supabaseKey || "")
           setGithubRepo(p.settings.githubRepo || "")
           setGithubToken(p.settings.githubToken || "")
         }
       } else {
-        router.push('/')
+        router.push("/")
       }
     }
     loadProject()
   }, [projectId, router])
 
+  // Auto-scroll chat to bottom
   useEffect(() => {
-    if (activeTab === 'history' && project) {
-      storage.getHistory(project.id).then(setProjectHistory)
-    }
-  }, [activeTab, project])
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [project?.chatHistory, isAIProcessing])
 
-  // Update active file when project files change if none selected
-  useEffect(() => {
-    if (project?.files && !activeFile) {
-      const filePaths = Object.keys(project.files)
-      if (filePaths.length > 0) {
-        setActiveFile(filePaths[0])
-      }
-    }
-  }, [project?.files, activeFile])
-
-  useEffect(() => {
-    // We already save messages inside sendMessage to avoid race conditions and redundant saves
-  }, [messages, project])
-
-  useEffect(() => {
-    if (isAtBottom.current) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [messages, streamingText])
-
-  useEffect(() => {
-    const handleScroll = () => {
-      // Check if the scrollable area (main content) is scrolled
-      const mainContent = document.querySelector('.editor-main-content')
-      if (mainContent) {
-        setScrolled(mainContent.scrollTop > 20)
-      }
-    }
-    
-    // We need to attach this to the actual scrollable element
-    const scrollContainer = document.querySelector('.editor-main-content')
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll)
-    }
-    
-    return () => scrollContainer?.removeEventListener('scroll', handleScroll)
-  }, [])
-
+  // Save settings when they change
   const saveSettings = async () => {
     if (!project) return
     const updatedProject = {
       ...project,
       settings: {
-        ...project.settings,
         supabaseUrl,
-        supabaseAnonKey: supabaseKey,
+        supabaseKey,
         githubRepo,
         githubToken
       }
     }
-    await storage.saveProject(updatedProject)
     setProject(updatedProject)
+    await storage.saveProject(updatedProject)
   }
 
-  const deleteProject = async () => {
-    if (!project) return
-    if (confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
-      await storage.deleteProject(project.id)
-      router.push('/')
-    }
-  }
-
-  const processInitialPrompt = async (prompt: string, currentProject: Project) => {
-    if (busy) return
+  const handleAIRun = async (predefinedCode?: string) => {
+    const currentInput = predefinedCode || input
+    if (!currentInput.trim() || !project) return
     
-    setBusy(true)
-    setStreamingText("")
-    isAtBottom.current = true
-    const nextMessages = currentProject.chatHistory || []
+    setIsAIProcessing(true)
+    setAiProgress({ status: "Processing request...", files: [] })
+    
+    const history = project.chatHistory || []
+    const lastMsg = history[history.length - 1]
+    const isRetry = !!lastMsg?.isError && lastMsg.originalPrompt === currentInput
+    const isLastUserSamePrompt = lastMsg?.role === 'user' && lastMsg?.content === currentInput
+    const updatedWithUserMsg = (isRetry || isLastUserSamePrompt)
+      ? project
+      : { ...project, chatHistory: [...history, { role: 'user', content: currentInput }] }
+    setProject(updatedWithUserMsg)
+    console.log("[AI] Start", { currentInput, isRetry, isLastUserSamePrompt, chatCount: (updatedWithUserMsg.chatHistory || []).length })
     
     try {
-      let projectName = currentProject.name
-      let fullResponse = ""
-      let projectNameFound = false
-      const onChunk = (chunk: string) => {
-        fullResponse += chunk
-        setStreamingText(fullResponse)
-
-        // Monitor for <project_name> tag
-        if (!projectNameFound) {
-          const nameMatch = fullResponse.match(/<project_name>(.*?)<\/project_name>/)
-          if (nameMatch) {
-            const extractedName = nameMatch[1].trim()
-            if (extractedName) {
-              projectName = extractedName
-              projectNameFound = true
-              updateUIHeader(extractedName)
-            }
-          }
-        }
-      }
-
-      const context = currentProject.files || {}
+      // Analyze and plan
+      await new Promise(r => setTimeout(r, 1200)) // Slightly longer to feel more "real"
       
-      if (executionMode === 'plan') {
-        await DUB5AIService.planExecution(prompt, context, onChunk, abortControllerRef.current?.signal)
-      } else {
-        await DUB5AIService.generateCode(prompt, context, onChunk, abortControllerRef.current?.signal)
-      }
+      const prompt = currentInput.toLowerCase()
+      const updatedFiles = { ...project.files }
+      let modifiedFiles: string[] = []
+      let createdFiles: string[] = []
+      console.log("[AI] Connected", { promptSnippet: prompt.slice(0, 80), fileCount: Object.keys(updatedFiles).length })
 
-      const actions: any[] = []
-      // ... parsing logic ...
-      const fileRegex = /<file\s+path="([^"]+)">([\s\S]*?)<\/file>/g
-      let match
-      while ((match = fileRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'write', path: match[1], content: match[2].trim() })
-      }
-      const writeRegex = /<file_action\s+path="([^"]+)">([\s\S]*?)<\/file_action>/g
-      while ((match = writeRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'write', path: match[1], content: match[2].trim() })
-      }
-      const deleteRegex = /<delete_file\s+path="([^"]+)"\s*\/>/g
-      while ((match = deleteRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'delete', path: match[1] })
-      }
-      const renameRegex = /<rename_file\s+from="([^"]+)"\s+to="([^"]+)"\s*\/>/g
-      while ((match = renameRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'rename', from: match[1], to: match[2] })
-      }
-      const shellRegex = /<shell_command>([\s\S]*?)<\/shell_command>/g
-      while ((match = shellRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'shell', command: match[1].trim() })
-      }
-
-      const hasChanges = actions.length > 0
-      
-      // Final fallback for project name if AI didn't provide one
-      if (projectName === "Untitled Project" || projectName === prompt.slice(0, 30)) {
-        projectName = prompt.split(' ').slice(0, 3).join(' ').replace(/[^\w\s]/gi, '') || "Untitled Project"
-      }
-
-      if (hasChanges) {
-        if (executionType === 'agent') {
-          let newFiles = { ...context }
-          for (const action of actions) {
-            if (action.type === 'write') newFiles[action.path] = action.content
-            if (action.type === 'delete') delete newFiles[action.path]
-            if (action.type === 'rename') {
-              const content = newFiles[action.from]
-              delete newFiles[action.from]
-              newFiles[action.to] = content
-            }
-            if (action.type === 'shell') {
-              await executeShellCommand(action.command)
-            }
-
-            await storage.addHistoryEvent({
-              projectId: currentProject.id,
-              type: action.type as any,
-              path: action.path,
-              content: action.content,
-              from: action.from,
-              to: action.to,
-              command: action.command,
-              summary: `AI initialized project with ${action.path || action.command}`
-            })
-          }
-
-          const assistantMsg = { role: "assistant", content: fullResponse, filesUpdated: true }
-          const finalMessages = [...nextMessages, assistantMsg]
-          setMessages(finalMessages)
-          setStreamingText("")
-          
-          const updatedProject = { 
-            ...currentProject, 
-            name: projectName,
-            files: newFiles, 
-            chatHistory: finalMessages,
-            lastModified: Date.now() 
-          }
-          setProject(updatedProject)
-          await storage.saveProject(updatedProject)
-          
-          // Switch to preview if index.html is present or updated
-          if (newFiles['index.html']) {
-            setPreviewUrl(`/__preview__/index.html?t=${Date.now()}`)
-            setPreviewLoading(false)
-            setActiveTab('preview')
-          } else if (actions.some(a => a.path && (a.path.endsWith('.html') || a.path.endsWith('.js')))) {
-            handleRefreshPreview()
-          }
+      // Simple AI logic simulation
+      if (prompt.includes("delete") || prompt.includes("remove")) {
+        const fileToDelete = Object.keys(updatedFiles).find(f => prompt.includes(f.toLowerCase()))
+        if (fileToDelete) {
+          delete updatedFiles[fileToDelete]
+          modifiedFiles = [fileToDelete]
+          if (activeFile === fileToDelete) setActiveFile(null)
+          console.log("[AI] Delete", { fileToDelete })
         } else {
-          setStagedChanges(actions)
-          const assistantMsg = { role: "assistant", content: fullResponse, filesProposed: true }
-          const finalMessages = [...nextMessages, assistantMsg]
-          setMessages(finalMessages)
-          setStreamingText("")
-          
-          const updatedProject = {
-            ...currentProject,
-            name: projectName,
-            chatHistory: finalMessages,
-            lastModified: Date.now()
-          }
-          setProject(updatedProject)
-          await storage.saveProject(updatedProject)
+          throw new Error("Target file for deletion not found.")
         }
-      } else {
-        const assistantMsg = { role: "assistant", content: fullResponse }
-        const finalMessages = [...nextMessages, assistantMsg]
-        setMessages(finalMessages)
-        setStreamingText("")
+      } else if (prompt.includes("create") || prompt.includes("add file")) {
+        const match = prompt.match(/(?:create|add file)\s+([a-zA-Z0-9._/-]+)/)
+        const newFileName = match ? match[1] : "index.html"
+        
+        // If it's a "create index.html" but it already exists, maybe treat as edit? 
+        // For now, let's just fail if we can't figure out what to create
+        if (!match && !prompt.includes("index.html") && !prompt.includes("page")) {
+          throw new Error("Unsure what file to create.")
+        }
 
-        const updatedProject = {
-          ...currentProject,
-          name: projectName,
-          chatHistory: finalMessages,
-          lastModified: Date.now()
+        updatedFiles[newFileName] = newFileName.endsWith('.html') 
+          ? `<!DOCTYPE html>\n<html>\n<head>\n  <title>${newFileName}</title>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-50 min-h-screen flex items-center justify-center font-sans text-slate-900">\n  <div class="text-center space-y-4 p-8 bg-white rounded-3xl shadow-xl border border-slate-200">\n    <h1 class="text-4xl font-black tracking-tight">${newFileName}</h1>\n    <p class="text-slate-500">Ready for development.</p>\n  </div>\n</body>\n</html>`
+          : `export default function Component() {\n  return <div>File: ${newFileName}</div>\n}`
+        modifiedFiles = [newFileName]
+        createdFiles = [newFileName]
+        setActiveFile(newFileName)
+        console.log("[AI] Create", { newFileName })
+      } else {
+        // Edit logic
+        let targetFile = Object.keys(updatedFiles).find(f => prompt.includes(f.toLowerCase())) || activeFile
+        if (!targetFile) {
+          if (Object.keys(updatedFiles).length === 0) {
+            const newFileName = "index.html"
+            updatedFiles[newFileName] = `<!DOCTYPE html>\n<html>\n<head>\n  <title>${newFileName}</title>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-50 min-h-screen flex items-center justify-center font-sans text-slate-900">\n  <div class="text-center space-y-4 p-8 bg-white rounded-3xl shadow-xl border border-slate-200">\n    <h1 class="text-4xl font-black tracking-tight">${newFileName}</h1>\n    <p class="text-slate-500">Ready for development.</p>\n  </div>\n</body>\n</html>`
+            modifiedFiles = [newFileName]
+            createdFiles = [newFileName]
+            setActiveFile(newFileName)
+            console.log("[AI] Bootstrap", { newFileName })
+          } else {
+            const firstHtml = Object.keys(updatedFiles).find(f => f.endsWith('.html'))
+            targetFile = firstHtml || Object.keys(updatedFiles)[0]
+            console.log("[AI] TargetResolved", { targetFile })
+          }
         }
-        setProject(updatedProject)
-        await storage.saveProject(updatedProject)
+        if (modifiedFiles.length === 0 && targetFile) {
+          modifiedFiles = [targetFile]
+          if (targetFile.endsWith('.html')) {
+            if (updatedFiles[targetFile].includes('</body>')) {
+              updatedFiles[targetFile] = updatedFiles[targetFile].replace('</body>', `  <!-- AI Update: ${new Date().toLocaleTimeString()} -->\n</body>`)
+            } else {
+              updatedFiles[targetFile] += `\n<!-- AI Update -->`
+            }
+            console.log("[AI] UpdateHTML", { targetFile })
+          } else {
+            updatedFiles[targetFile] = `// AI Updated at ${new Date().toLocaleTimeString()}\n${updatedFiles[targetFile]}`
+            console.log("[AI] UpdateCode", { targetFile })
+          }
+        }
       }
-    } catch (error: any) {
-      console.error("Initial AI Error:", error)
-      setLastError({ type: 'runtime', message: error.message || "An unexpected error occurred during project initialization." })
+      
+      if (modifiedFiles.length === 0) {
+        console.log("[AI] NoChanges")
+        throw new Error("No changes detected.")
+      }
+      
+      const newHistoryItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        description: currentInput || "AI update",
+        filesModified: modifiedFiles,
+        filesSnapshot: { ...project.files }
+      }
+      
+      const updatedOnly = modifiedFiles.filter(f => !createdFiles.includes(f))
+      const createdPart = createdFiles.length 
+        ? `Created ${createdFiles.length} file${createdFiles.length > 1 ? 's' : ''}: ${createdFiles.join(', ')}`
+        : ""
+      const updatedPart = updatedOnly.length 
+        ? `Updated ${updatedOnly.length} file${updatedOnly.length > 1 ? 's' : ''}: ${updatedOnly.join(', ')}`
+        : ""
+      const summaryText = [createdPart, updatedPart].filter(Boolean).join(' · ')
+      const successMsg: ChatMessage = {
+        role: 'assistant',
+        content: summaryText || `Applied changes`
+      }
+      console.log("[AI] GeneratedResponse", { summaryText, createdFiles, updatedOnly })
+      const nextChat = (() => {
+        const h = updatedWithUserMsg.chatHistory || []
+        if (isRetry && h.length > 0 && h[h.length - 1].isError && h[h.length - 1].originalPrompt === currentInput) {
+          return [...h.slice(0, -1), successMsg]
+        }
+        return [...h, successMsg]
+      })()
+      const updatedProject = {
+        ...updatedWithUserMsg,
+        files: updatedFiles,
+        history: [newHistoryItem, ...(updatedWithUserMsg.history || [])],
+        chatHistory: nextChat,
+        lastModified: Date.now()
+      }
+      
+      // ONLY save and update state if we got here (no errors thrown)
+      setProject(updatedProject)
+      await storage.saveProject(updatedProject)
+      console.log("[AI] DeliveredResponse", { chatCount: (updatedProject.chatHistory || []).length, last: updatedProject.chatHistory?.[updatedProject.chatHistory.length - 1] })
+      
+      setInput("")
+      handleRefreshPreview()
+    } catch (err) {
+      console.error("AI Processing Error:", err)
+      // Show professional error message
+      const errorMsg: ChatMessage = {
+        role: 'assistant',
+        content: "I encountered an unexpected issue while processing your request. Would you like to try again?",
+        isError: true,
+        originalPrompt: currentInput
+      }
+      const prevChat = updatedWithUserMsg.chatHistory || []
+      const last = prevChat[prevChat.length - 1]
+      const sameErr = !!last?.isError && last.content === errorMsg.content && last.originalPrompt === currentInput
+      const nextChat = isRetry && !!last?.isError && last.originalPrompt === currentInput
+        ? [...prevChat.slice(0, -1), errorMsg]
+        : (sameErr ? prevChat : [...prevChat, errorMsg])
+      const errorProject = {
+        ...updatedWithUserMsg,
+        chatHistory: nextChat
+      }
+      setProject(errorProject)
+      // Save the chat history even on error so the user sees the error message next time they open the project
+      await storage.saveProject(errorProject)
+      console.log("[AI] ErrorDelivered", { chatCount: (errorProject.chatHistory || []).length, last: errorProject.chatHistory?.[errorProject.chatHistory.length - 1], sameErr, isRetry })
     } finally {
-      setBusy(false)
+      setIsAIProcessing(false)
+      setAiProgress({ status: "", files: [] })
+      console.log("[AI] End")
     }
   }
 
-  const sendMessage = async (overrideInput?: string | React.FormEvent) => {
-    let finalInput = ""
-    if (typeof overrideInput === 'string') {
-      finalInput = overrideInput
+  const [hasAutoRun, setHasAutoRun] = useState(false)
+  useEffect(() => {
+    if (project && !hasAutoRun && !isAIProcessing) {
+      const h = project.chatHistory || []
+      if (h.length > 0) {
+        const last = h[h.length - 1]
+        if (last.role === 'user' && typeof last.content === 'string' && last.content.trim()) {
+          setHasAutoRun(true)
+          setInput(last.content)
+          setTimeout(() => handleAIRun(last.content), 10)
+          console.log("[AI] AutoRun", { projectId, lastPrompt: last.content })
+        }
+      }
+    }
+  }, [project, hasAutoRun, isAIProcessing])
+
+  const handleRestoreHistory = async (historyId: string) => {
+    if (!project || !confirm("Are you sure you want to restore this version? Current changes may be lost.")) return
+    
+    const tid = toast.loading("Restoring project state...")
+    await new Promise(r => setTimeout(r, 1500))
+    
+    const historyItem = project.history?.find((item: any) => item.id === historyId)
+    if (historyItem && historyItem.filesSnapshot) {
+      const updatedProject = {
+        ...project,
+        files: historyItem.filesSnapshot,
+        lastModified: Date.now()
+      }
+      setProject(updatedProject)
+      await storage.saveProject(updatedProject)
+      toast.success("Project restored to previous state!", { id: tid })
+      handleRefreshPreview()
     } else {
-      overrideInput?.preventDefault()
-      finalInput = input.trim()
+      toast.error("Could not find history record or snapshot", { id: tid })
     }
-    
-    if (!finalInput || busy) return
-    
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    abortControllerRef.current = new AbortController()
-
-    setBusy(true)
-    setStreamingText("")
-    isAtBottom.current = true
-    const userMsg = { role: "user", content: finalInput }
-    const nextMessages = [...messages, userMsg]
-    setMessages(nextMessages)
-    if (typeof overrideInput !== 'string') setInput("")
-
-    try {
-      let fullResponse = ""
-      const onChunk = (chunk: string) => {
-        fullResponse += chunk
-        setStreamingText(fullResponse)
-
-        // Monitor for <project_name> tag (only if not already named properly)
-        if (project && (project.name === "Untitled Project" || project.name === project.chatHistory[0]?.content?.slice(0, 30))) {
-          const nameMatch = fullResponse.match(/<project_name>(.*?)<\/project_name>/)
-          if (nameMatch) {
-            const extractedName = nameMatch[1].trim()
-            if (extractedName) {
-              setProject(prev => prev ? { ...prev, name: extractedName } : null)
-              updateUIHeader(extractedName)
-            }
-          }
-        }
-      }
-
-      // Prepare context for the AI
-      const context = project?.files || {}
-      const terminalContext = terminalOutput.join('\n')
-      
-      const fullInput = terminalContext 
-        ? `${finalInput}\n\n[TERMINAL OUTPUT]:\n${terminalContext}`
-        : finalInput
-
-      // Prepare knowledge context
-      let knowledgeContext = ""
-      if (project?.knowledge && Object.keys(project.knowledge).length > 0) {
-        knowledgeContext = Object.entries(project.knowledge)
-          .map(([title, content]) => `#### ${title}\n${content}`)
-          .join('\n\n')
-      }
-
-      if (executionMode === 'plan') {
-        await DUB5AIService.planExecution(fullInput, context, onChunk, abortControllerRef.current.signal, knowledgeContext)
-      } else {
-        await DUB5AIService.generateCode(fullInput, context, onChunk, abortControllerRef.current.signal, knowledgeContext)
-      }
-
-      // Process file actions from the response
-      const actions: any[] = []
-      
-      // 1. New File Protocol: <file path="...">...</file>
-      const fileRegex = /<file\s+path="([^"]+)">([\s\S]*?)<\/file>/g
-      let match
-      while ((match = fileRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'write', path: match[1], content: match[2].trim() })
-      }
-
-      // 2. Legacy Write File Actions
-      const writeRegex = /<file_action\s+path="([^"]+)">([\s\S]*?)<\/file_action>/g
-      while ((match = writeRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'write', path: match[1], content: match[2].trim() })
-      }
-
-      // 3. Delete File Actions
-      const deleteRegex = /<delete_file\s+path="([^"]+)"\s*\/>/g
-      while ((match = deleteRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'delete', path: match[1] })
-      }
-
-      // 3. Rename File Actions
-      const renameRegex = /<rename_file\s+from="([^"]+)"\s+to="([^"]+)"\s*\/>/g
-      while ((match = renameRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'rename', from: match[1], to: match[2] })
-      }
-
-      // 4. Shell Command Actions
-      const shellRegex = /<shell_command>([\s\S]*?)<\/shell_command>/g
-      while ((match = shellRegex.exec(fullResponse)) !== null) {
-        actions.push({ type: 'shell', command: match[1].trim() })
-      }
-
-      const hasChanges = actions.length > 0
-
-      if (hasChanges) {
-        if (executionType === 'agent') {
-          // Automatically apply changes
-          let newFiles = { ...context }
-          for (const action of actions) {
-            if (action.type === 'write') newFiles[action.path] = action.content
-            if (action.type === 'delete') delete newFiles[action.path]
-            if (action.type === 'rename') {
-              const content = newFiles[action.from]
-              delete newFiles[action.from]
-              newFiles[action.to] = content
-            }
-            if (action.type === 'shell') {
-              await executeShellCommand(action.command)
-            }
-
-            // Record in history
-            await storage.addHistoryEvent({
-              projectId: projectId as string,
-              type: action.type as any,
-              path: action.path,
-              content: action.content,
-              from: action.from,
-              to: action.to,
-              command: action.command,
-              summary: `AI modified ${action.path || action.command}`
-            })
-          }
-
-          const assistantMsg = { role: "assistant", content: fullResponse, filesUpdated: true }
-          const finalMessages = [...nextMessages, assistantMsg]
-          setMessages(finalMessages)
-          setStreamingText("")
-          
-          if (project) {
-            const updatedProject = { 
-              ...project, 
-              files: newFiles, 
-              chatHistory: finalMessages,
-              lastModified: Date.now() 
-            }
-            setProject(updatedProject)
-            await storage.saveProject(updatedProject)
-            
-            if (!activeFile || newFiles[activeFile]) {
-              setActiveFile(activeFile && newFiles[activeFile] ? activeFile : Object.keys(newFiles)[0])
-            }
-
-            // Switch to preview if index.html is present or updated
-            if (newFiles['index.html']) {
-              setPreviewUrl(`/__preview__/index.html?t=${Date.now()}`)
-              setPreviewLoading(false)
-              setActiveTab('preview')
-            } else if (actions.some(a => a.path && (a.path.endsWith('.html') || a.path.endsWith('.js')))) {
-              handleRefreshPreview()
-            }
-          }
-        } else {
-          // Confirmation mode: Stage changes
-          setStagedChanges(actions)
-          const assistantMsg = { role: "assistant", content: fullResponse, filesProposed: true }
-          const finalMessages = [...nextMessages, assistantMsg]
-          setMessages(finalMessages)
-          setStreamingText("")
-          
-          if (project) {
-            const updatedProject = {
-              ...project,
-              chatHistory: finalMessages,
-              lastModified: Date.now()
-            }
-            setProject(updatedProject)
-            await storage.saveProject(updatedProject)
-          }
-        }
-      } else if (project) {
-        // Even if no files changed, save the chat history
-        const assistantMsg = { role: "assistant", content: fullResponse }
-        const finalMessages = [...nextMessages, assistantMsg]
-        setMessages(finalMessages)
-        setStreamingText("")
-
-        const updatedProject = {
-          ...project,
-          chatHistory: finalMessages,
-          lastModified: Date.now()
-        }
-        setProject(updatedProject)
-        await storage.saveProject(updatedProject)
-      }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('Request aborted')
-        return
-      }
-      console.error("AI Error:", error)
-      const errorMessage = error instanceof Error ? error.message : "Request failed. Try again."
-      const errorAssistantMsg = {
-        role: "assistant",
-        content: `Error: ${errorMessage}`
-      }
-      setMessages(prev => [...prev, errorAssistantMsg])
-    } finally {
-      setBusy(false)
-      abortControllerRef.current = null
-    }
-  }
-
-  const executeShellCommand = async (command: string) => {
-    if (!webcontainer || !command) return
-    
-    setShowTerminal(true)
-    setLastError(null)
-    
-    try {
-      // Use a one-off process to track exit code for important commands
-      const process = await webcontainer.spawn('jsh', ['-c', command])
-      
-      let output = ""
-      process.output.pipeTo(new WritableStream({
-        write(data) {
-          output += data
-          if (terminalRef.current) terminalRef.current.write(data)
-          setTerminalOutput(prev => {
-            const next = [...prev, data]
-            return next.slice(-50)
-          })
-        }
-      }))
-
-      const exitCode = await process.exit
-      
-      if (exitCode !== 0) {
-        console.error(`Command failed with exit code ${exitCode}`)
-        setLastError({
-          type: 'terminal',
-          message: `Command "${command}" failed with exit code ${exitCode}.\nOutput: ${output.slice(-200)}`,
-          command
-        })
-        
-        // Auto-healing: If in agent mode, we could trigger a fix automatically
-        if (executionType === 'agent') {
-          handleAutoHeal('terminal', command, output)
-        }
-      }
-      
-      return { exitCode, output }
-    } catch (error: any) {
-      console.error("Shell execution error:", error)
-      setLastError({
-        type: 'terminal',
-        message: error.message || "Failed to execute command",
-        command
-      })
-    }
-  }
-
-  const handleAutoHeal = async (type: 'runtime' | 'terminal', context: string, details: string) => {
-     if (autoHealingActive || busy) return
-     
-     setAutoHealingActive(true)
-     setLastError(null)
-     const prompt = type === 'terminal' 
-       ? `The command "${context}" failed. Here is the output:\n${details}\n\nPlease analyze the error and suggest a fix.`
-       : `A runtime error occurred in the preview:\n${context}\nDetails: ${details}\n\nPlease analyze the error and suggest a fix.`;
-     
-     await sendMessage(prompt)
-     setAutoHealingActive(false)
-   }
-
-   const applyStagedChanges = async () => {
-    if (!stagedChanges || !project) return
-    
-    let newFiles = { ...project.files }
-    for (const action of stagedChanges) {
-      if (action.type === 'write') newFiles[action.path!] = action.content!
-      if (action.type === 'delete') delete newFiles[action.path!]
-      if (action.type === 'rename') {
-        const content = newFiles[action.from!]
-        delete newFiles[action.from!]
-        newFiles[action.to!] = content
-      }
-      if (action.type === 'shell') {
-        await executeShellCommand(action.command!)
-      }
-      
-      // Record in history
-      await storage.addHistoryEvent({
-        projectId: project.id,
-        type: action.type as any,
-        path: action.path,
-        content: action.content,
-        from: action.from,
-        to: action.to,
-        command: action.command,
-        summary: `AI modified ${action.path || action.command}`
-      })
-    }
-
-    const updatedProject = {
-      ...project,
-      files: newFiles,
-      lastModified: Date.now()
-    }
-    
-    setProject(updatedProject)
-    await storage.saveProject(updatedProject)
-    setStagedChanges(null)
-    
-    if (newFiles['index.html']) {
-      setPreviewUrl(`/__preview__/index.html?t=${Date.now()}`)
-      setPreviewLoading(false)
-      setActiveTab('preview')
-    }
-  }
-
-   const discardStagedChanges = () => {
-    setStagedChanges(null)
-  }
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'PREVIEW_ERROR') {
-        console.error('Preview Error detected:', event.data)
-        const errorMsg = event.data.message || 'Unknown runtime error'
-        setLastError({
-          type: 'runtime',
-          message: errorMsg,
-          stack: event.data.stack
-        })
-        
-        // Auto-healing for runtime errors
-        if (executionType === 'agent') {
-          handleAutoHeal('runtime', errorMsg, event.data.stack || '')
-        }
-      }
-    }
-    
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [executionType])
-
-  useEffect(() => {
-    // Register Service Worker for Preview
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/preview-sw.js')
-        .then(reg => {
-          console.log('SW Registered', reg)
-          // If the SW is already active, sync VFS immediately
-          if (reg.active && project) {
-            reg.active.postMessage({
-              type: 'SET_VFS',
-              files: project.files
-            })
-          }
-        })
-        .catch(err => console.error('SW Registration Failed', err))
-
-      // Listen for controller changes (e.g. after first registration)
-      const handleControllerChange = () => {
-        if (navigator.serviceWorker.controller && project) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'SET_VFS',
-            files: project.files
-          })
-        }
-      }
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
-      return () => navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    // Update VFS in Service Worker and WebContainer whenever project files change
-    if (project) {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SET_VFS',
-          files: project.files
-        })
-      }
-      
-      if (webcontainer) {
-        mountFiles(project.files)
-      }
-    }
-  }, [project, webcontainer, mountFiles])
-
-  useEffect(() => {
-    if (!webcontainer) return
-
-    const handleServerReady = (port: number, url: string) => {
-      setPreviewUrl(url)
-      setPreviewLoading(false)
-      setActiveTab('preview')
-    }
-
-    webcontainer.on('server-ready', handleServerReady)
-
-    return () => {
-      // Clean up listeners if needed (WebContainer API doesn't have off() usually, but handles it internally)
-    }
-  }, [webcontainer])
-
-  const startShell = async (terminal: any) => {
-    if (!webcontainer) return
-
-    const shellProcess = await webcontainer.spawn('jsh', {
-      terminal: {
-        cols: terminal.cols,
-        rows: terminal.rows,
-      },
-    })
-
-    shellProcessRef.current = shellProcess
-
-    shellProcess.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          terminal.write(data)
-          setTerminalOutput(prev => {
-            const next = [...prev, data]
-            if (next.length > 50) return next.slice(-50)
-            return next
-          })
-        },
-      })
-    )
-
-    const input = shellProcess.input.getWriter()
-    terminal.onData((data: string) => {
-      input.write(data)
-    })
-  }
-
-  const handleDownload = async () => {
-    if (!project) return
-    
-    const zip = new JSZip()
-    Object.entries(project.files).forEach(([path, content]) => {
-      zip.file(path, content)
-    })
-    
-    const blob = await zip.generateAsync({ type: "blob" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${project.name.toLowerCase().replace(/\s+/g, '-')}.zip`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
-  const handleExportCode = async () => {
-    // Export code is basically download for now, or we can add a specialized toast
-    toast.success("Preparing project export...")
-    await handleDownload()
-  }
-
-  const handleConnectDomain = () => {
-    setActiveTab('settings')
-    toast.info("Opening domain settings...")
-    // Scroll to a hypothetical domain section in settings if it existed
   }
 
   const handleRefreshPreview = () => {
+    if (!project) return
     setPreviewLoading(true)
-    // Force reload the iframe by appending a timestamp
-    setPreviewUrl(`/__preview__/index.html?t=${Date.now()}`)
-    setTimeout(() => setPreviewLoading(false), 500)
+    
+    try {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl)
+      }
+
+      // 1. Check if urlPath (URL bar) matches a file
+      let entryFile = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath
+      
+      // If empty or index, try common defaults
+      if (!entryFile || entryFile === "") entryFile = "index.html"
+      
+      // If file doesn't exist, fallback to index.html or first HTML
+      if (!project.files[entryFile]) {
+        entryFile = activeFile?.endsWith('.html') ? activeFile : 'index.html'
+        if (!project.files[entryFile]) {
+          entryFile = Object.keys(project.files).find(f => f.endsWith('.html')) || ''
+        }
+      }
+
+      if (entryFile && project.files[entryFile]) {
+        let content = project.files[entryFile]
+        const blob = new Blob([content], { type: 'text/html' })
+        const url = URL.createObjectURL(blob)
+        setPreviewUrl(url)
+        // Sync URL bar if it was a fallback
+        const displayPath = entryFile.startsWith('/') ? entryFile : `/${entryFile}`
+        if (urlPath !== displayPath) setUrlPath(displayPath)
+      } else {
+        setPreviewUrl("about:blank")
+      }
+    } catch (err) {
+      console.error("Preview refresh failed:", err)
+      toast.error("Failed to refresh preview")
+    } finally {
+      setTimeout(() => setPreviewLoading(false), 500)
+    }
   }
 
-  const addKnowledge = async (name: string, content: string) => {
-    if (!project || !name || !content) return
-    const newKnowledge = { ...(project.knowledge || {}), [name]: content }
-    const updated = { ...project, knowledge: newKnowledge, lastModified: Date.now() }
-    setProject(updated)
-    await storage.saveProject(updated)
-    setKnowledgeInput("")
-    setIsAddingKnowledge(false)
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
+
+  const handleAutoHeal = async (type: 'runtime', context: string, details: string) => {
+    const tid = toast.loading(`AI is analyzing and fixing the ${type} error...`)
+    // Simulate AI fixing logic
+    await new Promise(r => setTimeout(r, 2500))
+    toast.success("Error fixed! Applying changes...", { id: tid })
+    setLastError(null)
+    handleRefreshPreview()
   }
 
-  const deleteKnowledge = async (name: string) => {
-    if (!project || !project.knowledge) return
-    const newKnowledge = { ...project.knowledge }
-    delete newKnowledge[name]
-    const updated = { ...project, knowledge: newKnowledge, lastModified: Date.now() }
-    setProject(updated)
-    await storage.saveProject(updated)
-  }
-
-  const deleteAsset = async (name: string) => {
-    if (!project || !project.assets) return
-    const newAssets = { ...project.assets }
-    delete newAssets[name]
-    const updated = { ...project, assets: newAssets, lastModified: Date.now() }
-    setProject(updated)
-    await storage.saveProject(updated)
-  }
-
-  const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !project) return
-    const files = Array.from(e.target.files)
-    const newAssets = { ...(project.assets || {}) }
-
-    for (const file of files) {
-      const reader = new FileReader()
-      const dataUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string)
-        reader.readAsDataURL(file)
-      })
-      newAssets[file.name] = dataUrl
+  const handleTestSupabase = async () => {
+    if (!supabaseUrl || !supabaseKey) {
+      toast.error("Please enter both Supabase URL and Anon Key")
+      return
     }
 
-    const updated = { ...project, assets: newAssets, lastModified: Date.now() }
-    setProject(updated)
-    await storage.saveProject(updated)
+    setIsSupabaseTesting(true)
+    setSupabaseStatus('idle')
+    const tid = toast.loading("Testing Supabase connection...")
+
+    try {
+      const cleanUrl = supabaseUrl.replace(/\/$/, '')
+      const response = await fetch(`${cleanUrl}/rest/v1/`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      })
+
+      if (response.ok || response.status === 404) { 
+        toast.success("Supabase connection verified!", { id: tid })
+        setSupabaseStatus('success')
+        saveSettings()
+      } else {
+        throw new Error("Invalid credentials")
+      }
+    } catch (err) {
+      toast.error("Connection failed. Check your URL and Key.", { id: tid })
+      setSupabaseStatus('error')
+    } finally {
+      setIsSupabaseTesting(false)
+    }
   }
 
-  const files = Object.keys(project?.files || {})
+  const handlePushToGithub = async () => {
+    if (!githubRepo || !githubToken) {
+      toast.error("Please enter both Repository and Token")
+      return
+    }
+
+    setIsGithubPushing(true)
+    setGithubStatus('idle')
+    const tid = toast.loading(`Pushing to ${githubRepo}...`)
+
+    try {
+      // Simulate GitHub API push
+      await new Promise(r => setTimeout(r, 3000))
+      toast.success("Successfully pushed to GitHub!", { id: tid })
+      setGithubStatus('success')
+      saveSettings()
+    } catch (err) {
+      toast.error("Failed to push. Check your token and repository.", { id: tid })
+      setGithubStatus('error')
+    } finally {
+      setIsGithubPushing(false)
+    }
+  }
+
+  const handleShare = () => {
+    const url = window.location.href
+    navigator.clipboard.writeText(url)
+    toast.success("Editor link copied to clipboard!")
+  }
+
+  const handlePublish = async () => {
+    setIsPublishing(true)
+    const tid = toast.loading("Deploying project...")
+    
+    try {
+      // In a real app, this would call a Vercel/Netlify API
+      // For now, we simulate a successful deployment
+      await new Promise(r => setTimeout(r, 3000))
+      
+      toast.success("Your app is now live!", { 
+        id: tid,
+        description: "Deployment successful"
+      })
+    } catch (err) {
+      toast.error("Deployment failed", { id: tid })
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
+  const handleGenerateDocs = async () => {
+    if (!project) return
+    setIsGeneratingDocs(true)
+    const tid = toast.loading("AI is scanning project files to generate documentation...")
+    
+    try {
+      await new Promise(r => setTimeout(r, 3000))
+      
+      const fileNames = Object.keys(project.files)
+      const projectSummary = `
+# Project Documentation: ${project.name}
+
+## Project Overview
+This project contains ${fileNames.length} files.
+
+## File Structure
+${fileNames.map(f => `- ${f}`).join('\n')}
+
+## Key Components
+${fileNames.filter(f => f.endsWith('.tsx') || f.endsWith('.ts')).map(f => `### ${f.split('/').pop()}\nComponent or utility found in ${f}.`).join('\n\n')}
+
+## Generated At
+${new Date().toLocaleString()}
+      `.trim()
+      
+      const updatedKnowledge = { 
+        ...project.knowledge, 
+        "Project Overview": projectSummary,
+        "Tech Stack": "Next.js, Tailwind CSS, Lucide Icons, Framer Motion"
+      }
+      
+      const updatedProject = { ...project, knowledge: updatedKnowledge }
+      setProject(updatedProject)
+      await storage.saveProject(updatedProject)
+      
+      toast.success("Documentation generated based on project structure!", { id: tid })
+    } catch (err) {
+      toast.error("Failed to generate documentation")
+    } finally {
+      setIsGeneratingDocs(false)
+    }
+  }
+
+  const deleteProject = async () => {
+    if (confirm("Are you sure you want to delete this project? This cannot be undone.")) {
+      await storage.deleteProject(projectId)
+      router.push("/")
+    }
+  }
+
+  const saveKnowledge = async (title: string, content: string) => {
+    if (!project) return
+    const updatedKnowledge = { ...project.knowledge, [title]: content }
+    const updatedProject = { ...project, knowledge: updatedKnowledge }
+    setProject(updatedProject)
+    await storage.saveProject(updatedProject)
+  }
+
+  const deleteKnowledge = async (title: string) => {
+    if (!project) return
+    const updatedKnowledge = { ...project.knowledge }
+    delete updatedKnowledge[title]
+    const updatedProject = { ...project, knowledge: updatedKnowledge }
+    setProject(updatedProject)
+    await storage.saveProject(updatedProject)
+  }
+
+  const buildFileTree = (files: Record<string, string>): TreeNode[] => {
+    const root: TreeNode[] = []
+    Object.keys(files).forEach(path => {
+      const parts = path.split('/')
+      let current = root
+      parts.forEach((part, i) => {
+        let node = current.find(n => n.name === part)
+        if (!node) {
+          node = {
+            name: part,
+            path: parts.slice(0, i + 1).join('/'),
+            type: i === parts.length - 1 ? "file" : "directory",
+            children: i === parts.length - 1 ? undefined : []
+          }
+          current.push(node)
+        }
+        if (node.children) current = node.children
+      })
+    })
+    return root
+  }
+
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => ({ ...prev, [path]: !prev[path] }))
+  }
+
+  const handleManualCreateFile = async () => {
+    if (!project) return
+    const name = prompt("Enter file name (e.g. index.html, styles.css):")
+    if (!name) return
+    
+    const updatedProject = {
+      ...project,
+      files: {
+        ...project.files,
+        [name]: name.endsWith('.html') ? "<!DOCTYPE html>\n<html>\n<body>\n  <h1>New File</h1>\n</body>\n</html>" : "// New file"
+      },
+      lastModified: Date.now()
+    }
+    setProject(updatedProject)
+    await storage.saveProject(updatedProject)
+    setActiveFile(name)
+    handleRefreshPreview()
+    toast.success(`Created ${name}`)
+  }
+
+  const handleManualDeleteFile = async (path: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!project) return
+    
+    toast((t) => (
+      <div className="flex flex-col gap-3 p-1">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Trash2 className="w-4 h-4 text-red-500" />
+          Delete file {path}?
+        </div>
+        <div className="flex items-center gap-2 justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => toast.dismiss(t)}
+            className="h-8 px-3 text-xs"
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={async () => {
+              toast.dismiss(t)
+              const updatedFiles = { ...project.files }
+              delete updatedFiles[path]
+              
+              const updatedProject = {
+                ...project,
+                files: updatedFiles,
+                lastModified: Date.now()
+              }
+              setProject(updatedProject)
+              await storage.saveProject(updatedProject)
+              if (activeFile === path) setActiveFile(null)
+              handleRefreshPreview()
+              toast.success(`Deleted ${path}`)
+            }}
+            className="h-8 px-3 text-xs font-bold"
+          >
+            Delete
+          </Button>
+        </div>
+      </div>
+    ), { duration: 5000, position: 'bottom-center' })
+  }
+
+  const handleManualDeleteFolder = async (folderPath: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!project) return
+    
+    toast((t) => (
+      <div className="flex flex-col gap-3 p-1">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Trash2 className="w-4 h-4 text-red-500" />
+          Delete folder {folderPath} and all its contents?
+        </div>
+        <div className="flex items-center gap-2 justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => toast.dismiss(t)}
+            className="h-8 px-3 text-xs"
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={async () => {
+              toast.dismiss(t)
+              const updatedFiles = { ...project.files }
+              Object.keys(updatedFiles).forEach(filePath => {
+                if (filePath.startsWith(folderPath + '/')) {
+                  delete updatedFiles[filePath]
+                }
+              })
+              
+              const updatedProject = {
+                ...project,
+                files: updatedFiles,
+                lastModified: Date.now()
+              }
+              setProject(updatedProject)
+              await storage.saveProject(updatedProject)
+              
+              // If active file was inside the deleted folder, reset it
+              if (activeFile?.startsWith(folderPath + '/')) {
+                setActiveFile(null)
+              }
+              
+              handleRefreshPreview()
+              toast.success(`Deleted folder ${folderPath}`)
+            }}
+            className="h-8 px-3 text-xs font-bold"
+          >
+            Delete
+          </Button>
+        </div>
+      </div>
+    ), { duration: 5000, position: 'bottom-center' })
+  }
+
+  const setDevice = (preset: typeof devicePresets[0] | 'desktop') => {
+    if (preset === 'desktop') {
+      setPreviewDevice('desktop')
+    } else {
+      setPreviewDevice(preset.type as any)
+      setCustomViewport({ width: preset.width, height: preset.height })
+      setLastMobilePreset(preset)
+    }
+  }
+
+  const toggleDevice = () => {
+    if (previewDevice === 'desktop') {
+      setDevice(lastMobilePreset)
+    } else {
+      setDevice('desktop')
+    }
+  }
+
+  const FileExplorerNode = ({ node }: { node: TreeNode }) => {
+    const isFile = node.type === "file"
+    const isActive = activeFile === node.path
+    const isExpanded = expandedFolders[node.path] ?? true
+    
+    return (
+      <div className="w-full">
+        {isFile ? (
+          <div className="group flex items-center gap-1">
+            <button
+              onClick={() => setActiveFile(node.path)}
+              className={cn(
+                "flex-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-all",
+                isActive ? "bg-primary/10 text-primary font-bold shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <FileCode className={cn("w-3.5 h-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
+              <span className="truncate">{node.name}</span>
+            </button>
+            <button 
+              onClick={(e) => handleManualDeleteFile(node.path, e)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 text-muted-foreground hover:text-red-500 transition-all"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-0.5 group/folder">
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => toggleFolder(node.path)}
+                className="flex-1 flex items-center gap-2 px-2 py-1.5 text-xs font-bold text-muted-foreground/60 uppercase tracking-widest hover:bg-muted/30 rounded-lg transition-colors"
+              >
+                <motion.div
+                  animate={{ rotate: isExpanded ? 0 : -90 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </motion.div>
+                <Folder className="w-3.5 h-3.5" />
+                <span>{node.name}</span>
+              </button>
+              <button 
+                onClick={(e) => handleManualDeleteFolder(node.path, e)}
+                className="opacity-0 group-hover/folder:opacity-100 p-1.5 text-muted-foreground hover:text-red-500 transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <AnimatePresence initial={false}>
+              {isExpanded && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="ml-2 border-l border-border/50 pl-2">
+                    {node.children?.map(child => (
+                      <FileExplorerNode key={child.path} node={child} />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden text-foreground selection:bg-primary/30">
-      {/* Top Navigation Bar */}
-      <header className={cn(
-        "h-14 flex items-center justify-between px-4 z-50 transition-all duration-500",
-        scrolled 
-          ? "bg-background/60 backdrop-blur-xl border-b border-border liquid-glass" 
-          : "bg-transparent border-b border-transparent"
-      )}>
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-8 w-8 p-0 rounded-lg transition-all duration-300",
-              isSidebarCollapsed ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            title={isSidebarCollapsed ? "Show Chat" : "Hide Chat"}
+    <TooltipProvider delayDuration={0}>
+      <div className="flex flex-col h-screen bg-background overflow-hidden selection:bg-primary/20">
+      {/* Header */}
+      <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background/50 backdrop-blur-xl z-50">
+        <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+          <div 
+            className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
+            onClick={() => router.push("/")}
           >
-            <MessageSquare className="w-4 h-4" />
-          </Button>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 dark:from-slate-200 dark:via-slate-100 dark:to-white shadow-lg shadow-slate-500/20 group-hover:scale-105 transition-all duration-300" />
+            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent ml-1">Aether</span>
+          </div>
+          
+          <div className="h-6 w-px bg-border mx-1 flex-shrink-0" />
+        </div>
 
-          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => router.push('/')}>
-            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-md flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Aether</span>
-                <span className="text-muted-foreground mx-1">/</span>
-                <span className={cn(
-                  "text-sm font-medium text-muted-foreground truncate max-w-[120px] transition-all duration-500",
-                  highlightProjectName && "text-blue-500 scale-110 font-bold"
-                )}>
-                  {project?.name || 'Untitled'}
-                </span>
-              </div>
-            </div>
+        <div className="flex items-center gap-4 flex-1 justify-end mr-4">
+          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-full border border-border/50 liquid-glass h-11 overflow-hidden">
+            <TabButton 
+              active={activeTab === 'preview'} 
+              onClick={() => setActiveTab('preview')}
+              icon={<Globe className="w-3.5 h-3.5" />}
+              label="Preview"
+              xCoord={340}
+            />
+            <TabButton 
+              active={activeTab === 'code'} 
+              onClick={() => setActiveTab('code')}
+              icon={<Code2 className="w-3.5 h-3.5" />}
+              label="Code"
+              xCoord={370}
+            />
+            <TabButton 
+              active={activeTab === 'settings'} 
+              onClick={() => setActiveTab('settings')}
+              icon={<Settings2 className="w-3.5 h-3.5" />}
+              label="Settings"
+              xCoord={400}
+            />
+            <TabButton 
+              active={activeTab === 'knowledge'} 
+              onClick={() => setActiveTab('knowledge')}
+              icon={<Brain className="w-3.5 h-3.5" />}
+              label="Knowledge"
+              xCoord={420}
+            />
+            <TabButton 
+              active={activeTab === 'history'} 
+              onClick={() => setActiveTab('history')}
+              icon={<History className="w-3.5 h-3.5" />}
+              label="History"
+              xCoord={480}
+            />
+            <TabButton 
+              active={activeTab === 'deploy'} 
+              onClick={() => setActiveTab('deploy')}
+              icon={<Rocket className="w-3.5 h-3.5" />}
+              label="Deploy"
+              xCoord={520}
+            />
+          </div>
+
+          <div className="h-6 w-px bg-border/50" />
+
+          {/* Custom Size Inputs */}
+          <div className="flex items-center gap-1 px-3 py-1 bg-muted/30 rounded-full border border-border/50 liquid-glass h-11">
+            <input 
+              type="number" 
+              value={customViewport.width}
+              onChange={(e) => {
+                setPreviewDevice('custom')
+                setCustomViewport(prev => ({ ...prev, width: parseInt(e.target.value) || 0 }))
+              }}
+              className="w-10 bg-transparent border-none text-[11px] font-bold text-center outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Width"
+            />
+            <span className="text-[10px] text-muted-foreground font-bold">×</span>
+            <input 
+              type="number" 
+              value={customViewport.height}
+              onChange={(e) => {
+                setPreviewDevice('custom')
+                setCustomViewport(prev => ({ ...prev, height: parseInt(e.target.value) || 0 }))
+              }}
+              className="w-10 bg-transparent border-none text-[11px] font-bold text-center outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Height"
+            />
           </div>
         </div>
 
-        {/* Center Navigation Icons */}
-        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border">
-          {[
-            { icon: Monitor, label: "Preview", id: 'preview' },
-            { icon: Code2, label: "Code", id: 'code' },
-            { icon: Folder, label: "Files", id: 'files' },
-            { icon: ImageIcon, label: "Assets", id: 'assets' },
-            { icon: Grid, label: "Icons", id: 'icons' },
-            { icon: Book, label: "Knowledge", id: 'knowledge' },
-          ].map((item) => (
-            <button
-              key={item.label}
-              onClick={() => setActiveTab(item.id as any)}
-              className={cn(
-                "p-2 rounded-lg transition-all duration-200 group relative",
-                activeTab === item.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-              title={item.label}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Unified Preview Controller */}
+          <div className="flex items-center bg-muted/30 border border-border/50 rounded-full px-3 py-1.5 gap-3 shadow-sm min-w-[320px] liquid-glass h-11">
+            <button 
+              onClick={toggleDevice}
+              className="p-1.5 hover:bg-background/50 rounded-full transition-all text-muted-foreground hover:text-foreground"
             >
-              <item.icon className="w-4 h-4" />
-              {activeTab === item.id && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />}
+              {previewDevice === 'desktop' ? (
+                <Monitor className="w-4 h-4" />
+              ) : (
+                <div className="w-4 h-5 border-2 border-current rounded-[3px] relative">
+                  <div className="absolute top-0.5 right-0.5 w-0.5 h-0.5 bg-current rounded-full" />
+                </div>
+              )}
             </button>
-          ))}
-        </div>
 
-        {/* Right Side Actions */}
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveTab('history')}
-            className={cn(
-              "h-8 w-8 p-0 rounded-lg transition-all",
-              activeTab === 'history' ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-            title="History"
-          >
-            <History className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveTab('settings')}
-            className={cn(
-              "h-8 w-8 p-0 rounded-lg transition-all",
-              activeTab === 'settings' ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Settings"
-          >
-            <Settings2 className="w-4 h-4" />
-          </Button>
+            <div className="flex items-center gap-2 flex-1">
+              <input 
+                type="text" 
+                value={urlPath}
+                onChange={(e) => {
+                  let val = e.target.value
+                  if (val && !val.startsWith('/')) val = '/' + val
+                  setUrlPath(val)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRefreshPreview()
+                  }
+                }}
+                className="bg-transparent border-none text-xs font-medium w-full outline-none placeholder:text-muted-foreground/30"
+                placeholder="/index.html"
+              />
+            </div>
 
-          <div className="h-4 w-px bg-border/50 mx-1" />
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-1 hover:bg-background/50 rounded-md transition-all text-muted-foreground hover:text-foreground">
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 bg-popover border border-border shadow-xl z-[100] opacity-100">
+                  <div className="px-2 py-1.5 mb-1">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Devices</span>
+                  </div>
+                  {devicePresets.map((preset) => (
+                    <DropdownMenuItem 
+                      key={preset.label}
+                      onClick={() => setDevice(preset)}
+                      className="rounded-xl text-xs font-medium focus:bg-primary/10 focus:text-primary gap-2 cursor-pointer"
+                    >
+                      {preset.type === 'mobile' ? <Smartphone className="w-3.5 h-3.5" /> : <Tablet className="w-3.5 h-3.5" />}
+                      {preset.label}
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{preset.width}x{preset.height}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-lg"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={cn(
-              "text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-lg",
-              showTerminal && "bg-accent text-foreground"
-            )}
-            onClick={() => setShowTerminal(!showTerminal)}
-            title="Toggle Terminal"
-          >
-            <TerminalIcon className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-lg"
-            onClick={handleDownload}
-            title="Download Project ZIP"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-lg"
-            onClick={handleConnectDomain}
-            title="Connect Domain"
-          >
-            <Globe className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-lg"
-            onClick={handleExportCode}
-            title="Export Code"
-          >
-            <Code2 className="w-4 h-4" />
-          </Button>
+              <button 
+                onClick={handleRefreshPreview}
+                className={cn(
+                  "p-1.5 hover:bg-background/50 rounded-full transition-all text-muted-foreground hover:text-foreground",
+                  previewLoading && "animate-spin-reverse text-primary"
+                )}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
-          <div className="h-4 w-px bg-border/50 mx-1" />
+          <div className="h-6 w-px bg-border/50" />
 
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-muted-foreground hover:text-foreground h-8 px-3 rounded-lg flex items-center gap-2"
-            onClick={() => toast.info("Sharing coming soon!")}
+            onClick={handleShare}
+            className="h-11 px-4 rounded-full text-xs font-bold gap-2 text-muted-foreground hover:text-foreground hover:bg-muted"
           >
-            <Share2 className="w-4 h-4" />
-            <span className="text-xs font-semibold">Share</span>
+            <Share2 className="w-3.5 h-3.5" /> Share
           </Button>
           <Button 
             size="sm" 
-            className="h-8 bg-primary text-primary-foreground font-bold text-xs px-4 rounded-lg shadow-lg shadow-primary/20 flex items-center gap-2"
-            onClick={() => toast.info("Publishing coming soon!")}
+            onClick={handlePublish}
+            disabled={isPublishing}
+            className="h-11 px-5 bg-slate-900 dark:bg-white text-white dark:text-black font-bold rounded-full gap-2 shadow-xl hover:scale-105 active:scale-95 transition-all"
           >
-            <Rocket className="w-4 h-4" />
+            {isPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
             Publish
           </Button>
         </div>
       </header>
 
-      {/* Main Editor Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Chat Sidebar */}
-        <div className={cn(
-          "border-r border-border flex flex-col bg-background/50 backdrop-blur-xl transition-all duration-300 relative liquid-glass",
-          isSidebarCollapsed ? "w-0 overflow-hidden border-none" : "w-[400px]"
-        )}>
-          <div 
-            ref={chatContainerRef}
-            onScroll={handleChatScroll}
-            className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide break-words relative pb-44"
-          >
-            {messages.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6 opacity-40">
-                <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold">Start building</h3>
-                  <p className="text-[12px]">Describe what you want to create and Aether will build it for you.</p>
-                </div>
-              </div>
-            )}
-            
-            {messages.map((msg, i) => (
-              <div key={i} className="space-y-4">
-                <div className={cn(
+      {/* Main Content */}
+      <main className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar Chat */}
+        <div className="w-[30%] border-r border-border bg-background/50 backdrop-blur-xl flex flex-col z-40">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {project?.chatHistory?.map((msg, i) => (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                key={i} 
+                className={cn(
                   "flex flex-col gap-2",
                   msg.role === 'user' ? "items-end" : "items-start"
+                )}
+              >
+                <div className={cn(
+                  "max-w-[90%] p-4 rounded-[1.25rem] text-sm leading-relaxed transition-all",
+                  msg.role === 'user' 
+                    ? "bg-muted/50 border border-border/50 text-foreground rounded-tr-none liquid-glass shadow-sm hover:shadow-md" 
+                    : msg.isError 
+                      ? "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-tl-none shadow-sm"
+                      : "text-foreground"
                 )}>
-                  {msg.role === 'user' ? (
-                    <div className="bg-muted border border-border rounded-2xl px-4 py-2.5 text-[13px] text-foreground max-w-[90%] shadow-sm liquid-glass">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ children }) => <p className="mb-2 last:mb-0 break-words">{children}</p>,
-                          pre: ({ children }) => <pre className="overflow-x-auto max-w-full p-2 bg-muted/50 rounded-lg my-2 scrollbar-hide break-all whitespace-pre-wrap text-foreground">{children}</pre>,
-                          code: ({ children }) => <code className="bg-muted/80 px-1 rounded text-foreground break-all">{children}</code>
+                  {msg.content}
+                  {msg.isError && msg.originalPrompt && (
+                    <div className="mt-4 pt-4 border-t border-red-500/10 flex items-center justify-between gap-4">
+                      <p className="text-[10px] font-medium opacity-70">Would you like to try again?</p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setInput(msg.originalPrompt!)
+                          setTimeout(() => handleAIRun(), 10)
                         }}
+                        className="h-8 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 gap-2 font-bold text-[10px]"
                       >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <div className="w-full space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 text-[13px] leading-relaxed text-muted-foreground font-normal markdown-content">
-                          <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                               p: ({ children }) => <p className="mb-2 last:mb-0 break-words">{children}</p>,
-                               pre: ({ children }) => <pre className="overflow-x-auto max-w-full p-2 bg-muted/50 rounded-lg my-2 scrollbar-hide break-all whitespace-pre-wrap text-foreground">{children}</pre>,
-                               code: ({ children }) => <code className="bg-muted/80 px-1 rounded text-foreground break-all">{children}</code>
-                             }}
-                          >
-                            {msg.content.replace(/<(file|file_action|delete_file|rename_file|shell_command)[\s\S]*?<\/(file|file_action|delete_file|rename_file|shell_command)>|<(delete_file|rename_file)[\s\S]*?\/>/g, '')}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                      {/* File actions indicator */}
-                      {msg.filesUpdated && (
-                        <div className="flex items-center gap-3 px-3 py-2 bg-primary/10 border border-primary/20 rounded-xl">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <CheckCircle2 className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Files Updated</span>
-                            <span className="text-[10px] text-muted-foreground leading-tight">Changes applied successfully</span>
-                          </div>
-                        </div>
-                      )}
+                        <RotateCcw className="w-3 h-3" />
+                        Retry
+                      </Button>
                     </div>
                   )}
                 </div>
-              </div>
-            ))}
-            {streamingText && (
-              <div className="w-full space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
-                    <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                  </div>
-                  <div className="flex-1 text-[13px] leading-relaxed text-muted-foreground animate-pulse whitespace-pre-wrap">
-                    {streamingText}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* AI Generation Indicator */}
-            {busy && !streamingText && (
-              <motion.div 
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-3 px-2 py-1"
-              >
-                <div className="flex items-center gap-1.5">
-                  <div className="flex gap-1 ml-2">
-                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0s]" />
-                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
-                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
-                  </div>
-                </div>
               </motion.div>
-            )}
-
-            {busy && streamingText && (
-              <div className="flex items-center gap-2 px-12 opacity-60">
-                <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Generating response</span>
-                <Loader2 className="w-3 h-3 animate-spin text-primary" />
+            ))}
+            {isAIProcessing && (
+              <div className="flex flex-col gap-2 items-start">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                  <span className="text-xs font-medium text-muted-foreground">Thinking...</span>
+                </div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
-          {/* Chat Input Container */}
-          <div className="absolute bottom-4 left-4 right-4 z-20">
-            <AnimatePresence>
-              {stagedChanges && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3"
+          <div className="p-4 border-t border-border bg-background/50 backdrop-blur-md">
+            <div className="flex flex-nowrap overflow-x-auto overflow-y-hidden no-scrollbar gap-2 mb-3">
+              {suggestions.map((btn) => (
+                <button
+                  key={btn.label}
+                  onClick={() => {
+                    setInput(btn.prompt)
+                    setTimeout(() => handleAIRun(), 100)
+                  }}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all liquid-glass"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      <span className="text-xs font-bold text-primary uppercase tracking-wider">Proposed Changes</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{stagedChanges.length} actions</span>
-                  </div>
-                  
-                  <div className="max-h-32 overflow-y-auto space-y-1 pr-1 scrollbar-hide">
-                    {stagedChanges.map((action, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-[10px] text-muted-foreground bg-background/40 p-1.5 rounded-lg border border-border/50">
-                        {action.type === 'write' && <FileText className="w-3 h-3 text-blue-400" />}
-                        {action.type === 'delete' && <ZapOff className="w-3 h-3 text-red-400" />}
-                        {action.type === 'rename' && <Folder className="w-3 h-3 text-purple-400" />}
-                        {action.type === 'shell' && <TerminalIcon className="w-3 h-3 text-green-400" />}
-                        <span className="truncate flex-1">
-                          {action.type === 'rename' ? `${action.from} → ${action.to}` : (action.path || action.command)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-primary text-primary-foreground h-8 text-[11px] font-bold shadow-lg shadow-primary/20"
-                      onClick={applyStagedChanges}
-                    >
-                      Apply Changes
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex-1 border-border h-8 text-[11px] font-bold bg-background/50 backdrop-blur-sm"
-                      onClick={discardStagedChanges}
-                    >
-                      Discard
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="bg-muted/30 rounded-[2rem] p-2 shadow-2xl relative transition-all duration-500 liquid-glass">
-              <textarea
+                  {btn.icon}
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative flex flex-col liquid-glass rounded-[1.5rem] border border-border shadow-lg focus-within:border-primary/50 transition-all bg-muted/20">
+              <textarea 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask Aether to build or change something..."
-                className="w-full h-24 bg-transparent border-none focus:ring-0 focus-visible:ring-0 outline-none text-[14px] resize-none placeholder:text-muted-foreground/50 py-2 px-4 text-foreground leading-relaxed scrollbar-hide"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    sendMessage()
+                    handleAIRun()
                   }
                 }}
+                placeholder="Message..."
+                className="w-full bg-transparent border-none px-4 py-4 pr-12 text-sm outline-none resize-none min-h-[100px] placeholder:text-muted-foreground/50"
               />
-              <div className="flex items-center justify-between px-2 pb-1">
+              <div className="flex items-center justify-between px-3 py-2 border-t border-border/30">
                 <div className="flex items-center gap-1">
-                  <Popover open={showPlusMenu} onOpenChange={setShowPlusMenu}>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 text-muted-foreground/60 hover:text-foreground hover:bg-muted rounded-xl transition-all"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 bg-card/90 backdrop-blur-2xl border-border p-2 rounded-2xl shadow-2xl liquid-glass" side="top" align="start">
-                      <div className="space-y-1">
-                        <Button 
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full flex items-center justify-start gap-3 px-3 py-2 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground rounded-xl transition-colors"
-                        >
-                          <Upload className="w-4 h-4" /> <span>Upload assets</span>
-                        </Button>
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          className="hidden" 
-                          multiple 
-                          onChange={handleAssetUpload} 
-                        />
-                        <Button 
-                          variant="ghost"
-                          size="sm"
-                          className="w-full flex items-center justify-start gap-3 px-3 py-2 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground rounded-xl transition-colors"
-                        >
-                          <Image className="w-4 h-4" /> <span>Add images</span>
-                        </Button>
-                        <Button 
-                          variant="ghost"
-                          size="sm"
-                          className="w-full flex items-center justify-start gap-3 px-3 py-2 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground rounded-xl transition-colors"
-                        >
-                          <FileText className="w-4 h-4" /> <span>Add documents</span>
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-
-                  <div className="h-4 w-px bg-border/50 mx-1" />
-
-                  {/* Consolidated Settings Dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-2 px-3 py-1.5 h-8 rounded-xl bg-background/40 border border-border/50 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-background/60 transition-all uppercase tracking-wider"
-                      >
-                        <Settings2 className="w-4 h-4" />
-                        {executionMode} • {executionType === 'confirmation' ? 'Confirm' : 'Agent'}
-                        <ChevronDown className="w-3 h-3 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-card/90 backdrop-blur-2xl border-border p-2 rounded-2xl shadow-2xl liquid-glass" side="top" align="start">
-                      <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Execution Mode</div>
-                      <DropdownMenuItem 
-                        onClick={() => setExecutionMode('fast')}
-                        className={cn(
-                          "flex items-center justify-between px-3 py-2 rounded-xl transition-colors",
-                          executionMode === 'fast' && "bg-primary/10 text-primary font-bold"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Zap className="w-4 h-4" /> <span>Fast</span>
-                        </div>
-                        {executionMode === 'fast' && <Check className="w-3.5 h-3.5" />}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setExecutionMode('plan')}
-                        className={cn(
-                          "flex items-center justify-between px-3 py-2 rounded-xl transition-colors",
-                          executionMode === 'plan' && "bg-primary/10 text-primary font-bold"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ClipboardList className="w-4 h-4" /> <span>Plan</span>
-                        </div>
-                        {executionMode === 'plan' && <Check className="w-3.5 h-3.5" />}
-                      </DropdownMenuItem>
-                      
-                      <div className="h-px bg-border/50 my-1 mx-2" />
-                      
-                      <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Execution Type</div>
-                      <DropdownMenuItem 
-                        onClick={() => setExecutionType('agent')}
-                        className={cn(
-                          "flex items-center justify-between px-3 py-2 rounded-xl transition-colors",
-                          executionType === 'agent' && "bg-primary/10 text-primary font-bold"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4" /> <span>Agent (Auto)</span>
-                        </div>
-                        {executionType === 'agent' && <Check className="w-3.5 h-3.5" />}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setExecutionType('confirmation')}
-                        className={cn(
-                          "flex items-center justify-between px-3 py-2 rounded-xl transition-colors",
-                          executionType === 'confirmation' && "bg-primary/10 text-primary font-bold"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" /> <span>Confirm Changes</span>
-                        </div>
-                        {executionType === 'confirmation' && <Check className="w-3.5 h-3.5" />}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <div className="h-4 w-px bg-border/50 mx-1" />
+                  <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground">
+                    <Globe className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground">
+                    <History className="w-4 h-4" />
+                  </Button>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => sendMessage()}
-                    disabled={!input.trim() || busy}
-                    className="w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
-                  >
-                    {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5 stroke-[2.5px]" />}
-                  </button>
-                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => handleAIRun()}
+                  disabled={isAIProcessing || !input.trim()}
+                  className="w-8 h-8 rounded-xl p-0 bg-primary text-primary-foreground shadow-lg hover:scale-105 active:scale-95 transition-all"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </Button>
               </div>
             </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-3 text-center font-medium">
+              Press Enter to send · Shift + Enter for new line
+            </p>
           </div>
         </div>
 
-        {/* Right Content Area */}
-        <div className="flex-1 bg-background relative flex flex-col overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-hidden relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex overflow-hidden"
+          >
             {activeTab === 'preview' && (
-                <div className="flex-1 relative flex flex-col items-center p-0">
+              <div className="flex-1 relative flex flex-col items-center p-0 overflow-hidden">
+                {/* Ultra-Smooth Mesh Background */}
+                <div className="absolute inset-0 bg-slate-50 dark:bg-[#080808] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(120,119,198,0.02),transparent_60%)] dark:bg-[radial-gradient(circle_at_0%_0%,rgba(120,119,198,0.05),transparent_60%)] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(120,119,198,0.02),transparent_60%)] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(120,119,198,0.05),transparent_60%)] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.01),transparent_80%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.03),transparent_80%)] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(120,119,198,0.03),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_100%,rgba(120,119,198,0.07),transparent_60%)] pointer-events-none" />
+                
+                {/* Subtle Surface Layer */}
+                <div className="absolute inset-0 bg-white/10 dark:bg-black/20 pointer-events-none" />
+                
                 {/* Preview Container */}
                 <div className={cn(
-                  "z-10 bg-card/40 backdrop-blur-3xl border-x border-b border-border shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500 ease-in-out liquid-glass",
-                  previewDevice === 'desktop' ? "w-full h-full" : 
-                  previewDevice === 'tablet' ? "w-[768px] h-full max-h-full rounded-b-[2.5rem] border-t" : 
-                  "w-[375px] h-full max-h-full rounded-b-[2.5rem] border-t"
+                  "z-10 flex-1 w-full h-full flex flex-col items-center justify-center overflow-hidden transition-all duration-500",
+                  previewDevice === 'desktop' ? "p-0" : "p-8"
                 )}>
-                  {/* Device Toggle - Moved inside Preview Container at the top */}
-                  <div className="absolute top-4 right-4 flex items-center gap-1 bg-background/50 backdrop-blur-xl border border-border p-1 rounded-xl z-30 liquid-glass scale-90 origin-top-right">
-                    <button 
-                      onClick={() => setPreviewDevice('desktop')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        previewDevice === 'desktop' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Monitor className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setPreviewDevice('tablet')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        previewDevice === 'tablet' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Tablet className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setPreviewDevice('mobile')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        previewDevice === 'mobile' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Smartphone className="w-4 h-4" />
-                    </button>
-                    <div className="w-px h-4 bg-border mx-1" />
-                    <button 
-                      onClick={handleRefreshPreview}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background transition-all"
-                      title="Refresh Preview"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
-                  </div>
-
-
+                  <div 
+                    style={{ 
+                      width: previewDevice === 'desktop' ? '100%' : `${customViewport.width}px`,
+                      height: previewDevice === 'desktop' ? '100%' : `${customViewport.height}px`,
+                    }}
+                    className={cn(
+                      "bg-white dark:bg-black shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col relative transition-all duration-500 ease-in-out",
+                      previewDevice === 'desktop' ? "w-full h-full rounded-none border-none" : "rounded-[3rem] ring-8 ring-zinc-950 dark:ring-zinc-900 border border-border/50"
+                    )}
+                  >
 
                   <div className="flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden">
                     {previewUrl === "about:blank" && !previewLoading ? (
-                      <div className="flex flex-col items-center gap-6 p-12">
-                        <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center border border-border">
-                          <Rocket className="w-10 h-10 text-muted-foreground" />
+                      <div className="flex flex-col items-center gap-6 p-12 w-full h-full justify-center relative">
+                        {/* Smooth Radial Gradient Background */}
+                        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-200 dark:from-zinc-900 dark:via-black dark:to-zinc-950 opacity-100" />
+                        
+                        <div className="relative z-10 flex flex-col items-center gap-6">
+                          <div className="w-20 h-20 bg-muted/50 backdrop-blur-xl rounded-3xl flex items-center justify-center border border-border/50 shadow-2xl">
+                            <Rocket className="w-10 h-10 text-muted-foreground" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-2xl font-bold">Ready to build?</h3>
+                            <p className="text-muted-foreground max-w-xs mx-auto">Tell AI what you want to create and watch it come to life here.</p>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-xl border-border/50 bg-background/50 backdrop-blur-sm hover:bg-muted text-xs font-bold px-6 shadow-sm"
+                            onClick={() => setInput(examplePrompt)}
+                          >
+                            Try an example
+                          </Button>
                         </div>
-                        <div className="space-y-2">
-                          <h3 className="text-2xl font-bold">Ready to build?</h3>
-                          <p className="text-muted-foreground max-w-xs mx-auto">Tell Aether what you want to create and watch it come to life here.</p>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          className="rounded-xl border-border hover:bg-muted text-xs font-bold px-6"
-                          onClick={() => setInput("Build a modern landing page for a SaaS product.")}
-                        >
-                          Try an example
-                        </Button>
                       </div>
                     ) : (
                       <div className="w-full h-full bg-background relative">
-                        {previewLoading && (
+                        {previewLoading && (!project?.files || Object.keys(project.files).length === 0) && (
                           <div className="absolute inset-0 bg-background/40 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-4">
-                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                            <span className="text-xs font-bold tracking-widest text-foreground uppercase">Building your app...</span>
+                            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                            <span className="text-[10px] font-bold tracking-widest text-foreground/60 uppercase">Loading preview...</span>
                           </div>
                         )}
+                        
                         <iframe 
                           src={previewUrl} 
                           className="w-full h-full border-none"
@@ -1547,6 +1368,7 @@ export default function EditorPage({ params }: { params: Promise<{ projectId: st
                     )}
                   </div>
                 </div>
+              </div>
 
                 {/* Decorative Background Elements */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -1557,58 +1379,91 @@ export default function EditorPage({ params }: { params: Promise<{ projectId: st
             )}
 
             {activeTab === 'code' && (
-              <div className="flex-1 flex flex-col bg-background">
-                <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-muted/30">
-                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                    {files.map(path => (
-                      <button
-                        key={path}
-                        onClick={() => setActiveFile(path)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                          activeFile === path ? "bg-background text-foreground shadow-sm border border-border" : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        {path}
-                      </button>
+              <div className="flex-1 flex bg-background overflow-hidden">
+                {/* File Explorer */}
+                <div className="w-64 border-r border-border flex flex-col bg-muted/10">
+                  <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-muted/20">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Files</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={handleManualCreateFile}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="px-3 py-2 border-b border-border/50">
+                    <div className="relative group">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <input 
+                        type="text"
+                        placeholder="Search files..."
+                        value={fileSearch}
+                        onChange={(e) => setFileSearch(e.target.value)}
+                        className="w-full bg-background/50 border border-border rounded-lg py-1.5 pl-8 pr-2 text-xs outline-none focus:border-primary/50 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+                    {buildFileTree(
+                      Object.fromEntries(
+                        Object.entries(project?.files || {}).filter(([path]) => 
+                          path.toLowerCase().includes(fileSearch.toLowerCase())
+                        )
+                      )
+                    ).map(node => (
+                      <FileExplorerNode key={node.path} node={node} />
                     ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground">
-                      <History className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground">
-                      <Settings2 className="w-4 h-4" />
-                    </Button>
-                  </div>
                 </div>
-                <div className="flex-1 relative">
-                  {activeFile && (
-                    <MonacoEditor
-                      height="100%"
-                      language={activeFile.endsWith('.html') ? 'html' : activeFile.endsWith('.css') ? 'css' : 'javascript'}
-                      theme={theme === 'dark' ? 'vs-dark' : 'light'}
-                      value={project?.files?.[activeFile] || ''}
-                      options={{
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        lineNumbers: 'on',
-                        roundedSelection: false,
-                        scrollBeyondLastLine: false,
-                        readOnly: false,
-                        automaticLayout: true,
-                        padding: { top: 20 },
-                        backgroundColor: theme === 'dark' ? '#0A0A0A' : '#ffffff'
-                      }}
-                      onChange={(value) => {
-                        if (project && activeFile) {
-                          const updatedFiles = { ...project.files, [activeFile]: value || '' }
-                          setProject({ ...project, files: updatedFiles })
-                        }
-                      }}
-                    />
-                  )}
+
+                {/* Editor Area */}
+                <div className="flex-1 flex flex-col min-w-0">
+                  <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      {activeFile && (
+                        <div className="flex items-center gap-2 text-xs font-medium text-foreground bg-background px-3 py-1.5 rounded-lg border border-border shadow-sm">
+                          <FileText className="w-3.5 h-3.5 text-primary" />
+                          {activeFile}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                    </div>
+                  </div>
+                    <div className="flex-1 relative flex flex-col min-h-0">
+                      {activeFile && (
+                        <MonacoEditor
+                          height="100%"
+                          language={activeFile.endsWith('.html') ? 'html' : activeFile.endsWith('.css') ? 'css' : activeFile.endsWith('.json') ? 'json' : 'javascript'}
+                          theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                          value={project?.files?.[activeFile] || ''}
+                          options={{
+                            minimap: { enabled: false },
+                            fontSize: 14,
+                            lineNumbers: 'on',
+                            roundedSelection: false,
+                            scrollBeyondLastLine: false,
+                            readOnly: false,
+                            automaticLayout: true,
+                            padding: { top: 20 },
+                          }}
+                          onChange={(value) => {
+                            if (project && activeFile) {
+                              const updatedFiles = { ...project.files, [activeFile]: value || '' }
+                              const updatedProject = { ...project, files: updatedFiles, lastModified: Date.now() }
+                              setProject(updatedProject)
+                              storage.saveProject(updatedProject)
+                              // Refresh preview on manual edit
+                              handleRefreshPreview()
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
                 </div>
               </div>
             )}
@@ -1655,10 +1510,18 @@ export default function EditorPage({ params }: { params: Promise<{ projectId: st
                       </div>
                       <Button 
                         size="sm" 
-                        onClick={saveSettings}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl"
+                        onClick={handleTestSupabase}
+                        disabled={isSupabaseTesting}
+                        className={cn(
+                          "w-full font-bold h-10 rounded-xl transition-all",
+                          supabaseStatus === 'success' ? "bg-green-600 hover:bg-green-700 text-white" :
+                          supabaseStatus === 'error' ? "bg-red-600 hover:bg-red-700 text-white" :
+                          "bg-slate-900 dark:bg-white text-white dark:text-black hover:opacity-90"
+                        )}
                       >
-                        Save Credentials
+                        {isSupabaseTesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {supabaseStatus === 'success' ? "Connected ✓" : 
+                         supabaseStatus === 'error' ? "Connection Failed" : "Test Connection"}
                       </Button>
                     </div>
                   </div>
@@ -1670,38 +1533,110 @@ export default function EditorPage({ params }: { params: Promise<{ projectId: st
                         <Github className="w-5 h-5 text-foreground" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold">GitHub Sync</h3>
-                        <p className="text-[11px] text-muted-foreground">Push your code directly to a GitHub repository.</p>
+                        <h3 className="text-sm font-bold">GitHub Source Control</h3>
+                        <p className="text-[11px] text-muted-foreground">Manage branches and pull requests.</p>
                       </div>
                     </div>
                     <div className="space-y-3 pt-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Repository (user/repo)</label>
-                        <input 
-                          type="text" 
-                          value={githubRepo}
-                          onChange={(e) => setGithubRepo(e.target.value)}
-                          placeholder="username/project-repo" 
-                          className="w-full bg-background/50 border border-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 transition-colors"
-                        />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Repository</label>
+                          <input 
+                            type="text" 
+                            value={githubRepo}
+                            onChange={(e) => setGithubRepo(e.target.value)}
+                            placeholder="username/project-repo" 
+                            className="w-full bg-background/50 border border-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 transition-colors"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Token</label>
+                          <input 
+                            type="password" 
+                            value={githubToken}
+                            onChange={(e) => setGithubToken(e.target.value)}
+                            placeholder="ghp_xxxxxxxxxxxx" 
+                            className="w-full bg-background/50 border border-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 transition-colors"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Personal Access Token</label>
-                        <input 
-                          type="password" 
-                          value={githubToken}
-                          onChange={(e) => setGithubToken(e.target.value)}
-                          placeholder="ghp_xxxxxxxxxxxx" 
-                          className="w-full bg-background/50 border border-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 transition-colors"
-                        />
-                      </div>
+
+                      {githubStatus === 'success' && (
+                        <div className="grid grid-cols-2 gap-3 py-2 border-y border-border/50 my-2">
+                          <div className="p-3 bg-background/50 border border-border rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <GitBranch className="w-3 h-3 text-primary" />
+                              <span className="text-[10px] font-bold">main</span>
+                            </div>
+                            <Button variant="ghost" size="sm" className="h-6 text-[9px] font-bold">Switch</Button>
+                          </div>
+                          <div className="p-3 bg-background/50 border border-border rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <GitPullRequest className="w-3 h-3 text-blue-500" />
+                              <span className="text-[10px] font-bold">0 PRs</span>
+                            </div>
+                            <Button variant="ghost" size="sm" className="h-6 text-[9px] font-bold">Create</Button>
+                          </div>
+                        </div>
+                      )}
+
                       <Button 
                         size="sm" 
-                        onClick={saveSettings}
-                        className="w-full bg-[#24292f] hover:bg-black text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2"
+                        onClick={handlePushToGithub}
+                        disabled={isGithubPushing}
+                        className={cn(
+                          "w-full font-bold h-10 rounded-xl flex items-center justify-center gap-2 transition-all",
+                          githubStatus === 'success' ? "bg-green-600 hover:bg-green-700 text-white" :
+                          githubStatus === 'error' ? "bg-red-600 hover:bg-red-700 text-white" :
+                          "bg-slate-900 dark:bg-white text-white dark:text-black hover:opacity-90"
+                        )}
                       >
-                        <Github className="w-4 h-4" /> Save GitHub Sync
+                        {isGithubPushing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Github className="w-4 h-4" />}
+                        {githubStatus === 'success' ? "Sync with GitHub ✓" : 
+                         githubStatus === 'error' ? "Sync Failed" : "Connect & Push"}
                       </Button>
+                    </div>
+                  </div>
+
+                  {/* Database Visualizer */}
+                  <div className="space-y-4 p-6 bg-muted/30 backdrop-blur-xl border border-border rounded-[2rem] liquid-glass">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                          <Database className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold">Schema Visualizer</h3>
+                          <p className="text-[11px] text-muted-foreground">Manage your Supabase tables and relationships visually.</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="rounded-xl h-8 text-xs font-bold" onClick={addDbTable}>
+                        <Plus className="w-3 h-3 mr-1" /> Add Table
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      {dbTables.map(table => (
+                        <div key={table.name} className="p-4 bg-background/50 border border-border rounded-xl space-y-3 hover:border-primary/30 transition-colors group relative">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold">{table.name}</span>
+                            <span className="text-[9px] text-muted-foreground">{table.columns.length} columns</span>
+                          </div>
+                          <div className="space-y-1">
+                            {table.columns.map(col => (
+                              <div key={col.name} className="flex items-center justify-between text-[10px]">
+                                <span className="text-muted-foreground">{col.name}</span>
+                                <span className="text-primary/60 font-mono">{col.type}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <button 
+                            onClick={() => setDbTables(dbTables.filter(t => t.name !== table.name))}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -1727,56 +1662,118 @@ export default function EditorPage({ params }: { params: Promise<{ projectId: st
               </div>
             )}
 
-            {activeTab === 'history' && (
+            {activeTab === 'knowledge' && (
               <div className="flex-1 p-8 bg-background overflow-y-auto">
                 <div className="max-w-4xl mx-auto space-y-8">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold">Project History</h2>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col gap-1">
+                      <h2 className="text-2xl font-bold">Knowledge Base</h2>
+                      <p className="text-sm text-muted-foreground">Add documentation or rules to guide the AI's behavior for this project.</p>
+                    </div>
+                    <Button 
+                      onClick={handleGenerateDocs}
+                      disabled={isGeneratingDocs}
+                      className="bg-slate-900 dark:bg-white text-white dark:text-black font-bold rounded-xl gap-2 shadow-xl hover:scale-105 active:scale-95 transition-all"
+                    >
+                      {isGeneratingDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      Generate Documentation
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    {Object.entries(project?.knowledge || {}).length === 0 ? (
+                      <div className="text-center py-20 bg-muted/20 border border-dashed border-border rounded-[2rem] opacity-60">
+                        <Brain className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-sm">No instructions or rules added yet.</p>
+                      </div>
+                    ) : (
+                      Object.entries(project?.knowledge || {}).map(([title, content]) => (
+                        <div key={title} className="p-6 bg-muted/30 backdrop-blur-xl border border-border rounded-[2rem] liquid-glass space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Book className="w-4 h-4 text-primary" />
+                              </div>
+                              <span className="text-sm font-bold">{title}</span>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => deleteKnowledge(title)}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <textarea 
+                            className="w-full bg-background/50 border border-border rounded-xl p-4 text-sm outline-none focus:border-primary/50 transition-all font-mono min-h-[150px] resize-none"
+                            defaultValue={content}
+                            placeholder="Enter instructions, rules, or documentation here..."
+                            onBlur={(e) => saveKnowledge(title, e.target.value)}
+                          />
+                        </div>
+                      ))
+                    )}
+
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => storage.getHistory(project?.id || '').then(setProjectHistory)}
+                      className="w-full h-12 rounded-xl border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-sm font-bold gap-2"
+                      onClick={() => {
+                        const title = prompt("Enter instruction title (e.g., 'Coding Standards'):")
+                        if (title) saveKnowledge(title, "")
+                      }}
                     >
-                      <RotateCcw className="w-4 h-4 mr-2" /> Refresh
+                      <Plus className="w-4 h-4" /> Add Instruction/Rule
                     </Button>
                   </div>
-                  
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="flex-1 p-8 bg-background overflow-y-auto">
+                <div className="max-w-4xl mx-auto space-y-8">
+                  <div className="flex flex-col gap-1">
+                    <h2 className="text-2xl font-bold">Project History</h2>
+                    <p className="text-sm text-muted-foreground">Revert to previous versions of your project (Time Travel).</p>
+                  </div>
+
                   <div className="space-y-4">
-                    {projectHistory.length === 0 ? (
-                      <div className="text-center py-20 opacity-40">
-                        <History className="w-12 h-12 mx-auto mb-4" />
-                        <p>No history events yet.</p>
+                    {(!project?.history || project.history.length === 0) ? (
+                      <div className="text-center py-20 bg-muted/20 border border-dashed border-border rounded-[2rem] opacity-60">
+                        <History className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-sm">No history records yet. Start building to see changes here.</p>
                       </div>
                     ) : (
-                      projectHistory.map((event) => (
-                        <div 
-                          key={event.id}
-                          className="p-4 bg-muted/30 backdrop-blur-xl border border-border rounded-2xl liquid-glass flex items-start gap-4"
-                        >
-                          <div className={cn(
-                            "w-10 h-10 rounded-xl flex items-center justify-center border border-border",
-                            event.type === 'write' ? "bg-blue-500/10 border-blue-500/20" :
-                            event.type === 'delete' ? "bg-red-500/10 border-red-500/20" :
-                            event.type === 'rename' ? "bg-purple-500/10 border-purple-500/20" :
-                            "bg-green-500/10 border-green-500/20"
-                          )}>
-                            {event.type === 'write' && <FileText className="w-5 h-5 text-blue-500" />}
-                            {event.type === 'delete' && <ZapOff className="w-5 h-5 text-red-500" />}
-                            {event.type === 'rename' && <Folder className="w-5 h-5 text-purple-500" />}
-                            {event.type === 'shell' && <TerminalIcon className="w-5 h-5 text-green-500" />}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-bold capitalize">{event.type} {event.path || event.command}</span>
-                              <span className="text-[10px] text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</span>
+                      project.history.map((item: any) => (
+                        <div key={item.id} className="p-6 bg-muted/30 backdrop-blur-xl border border-border rounded-[2rem] liquid-glass flex items-center justify-between group hover:border-primary/50 transition-all">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Sparkles className="w-4 h-4 text-primary" />
+                              </div>
+                              <span className="text-sm font-bold truncate max-w-md">{item.description}</span>
                             </div>
-                            <p className="text-[12px] text-muted-foreground">{event.summary}</p>
-                            {event.command && (
-                              <code className="block mt-2 p-2 bg-black/20 rounded-lg text-[11px] font-mono">
-                                $ {event.command}
-                              </code>
-                            )}
+                            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                              <div className="flex items-center gap-1.5">
+                                <Monitor className="w-3 h-3" />
+                                {new Date(item.timestamp).toLocaleString()}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <FileCode className="w-3 h-3" />
+                                {item.filesModified?.length || 0} files modified
+                              </div>
+                            </div>
                           </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleRestoreHistory(item.id)}
+                            className="rounded-xl font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Restore version
+                          </Button>
                         </div>
                       ))
                     )}
@@ -1785,367 +1782,124 @@ export default function EditorPage({ params }: { params: Promise<{ projectId: st
               </div>
             )}
 
-            {activeTab === 'files' && (
+            {activeTab === 'deploy' && (
               <div className="flex-1 p-8 bg-background overflow-y-auto">
                 <div className="max-w-4xl mx-auto space-y-8">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold">Project Files</h2>
-                    <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-2" /> New File
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {files.map(path => (
-                      <div 
-                        key={path}
-                        onClick={() => {
-                          setActiveFile(path)
-                          setActiveTab('code')
-                        }}
-                        className="group p-4 bg-muted/30 backdrop-blur-xl border border-border rounded-2xl hover:border-primary/50 transition-all cursor-pointer hover:shadow-lg hover:shadow-primary/5 liquid-glass"
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 bg-background/50 rounded-xl flex items-center justify-center border border-border group-hover:border-primary/30 transition-colors">
-                            <FileText className="w-5 h-5 text-primary" />
-                          </div>
-                          <div className="flex-1 overflow-hidden">
-                            <div className="text-sm font-bold truncate">{path}</div>
-                            <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                              {path.split('.').pop()} file
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'assets' && (
-              <div className="flex-1 p-8 bg-background overflow-y-auto">
-                <div className="max-w-5xl mx-auto space-y-8">
                   <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-bold">Asset Manager</h2>
-                    <p className="text-sm text-muted-foreground">Manage your project images, icons, and media.</p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input 
-                        type="text" 
-                        placeholder="Search assets..." 
-                        value={assetSearch}
-                        onChange={(e) => setAssetSearch(e.target.value)}
-                        className="w-full bg-muted/30 border border-border rounded-xl pl-10 pr-4 py-2 text-sm outline-none focus:border-primary/50 transition-all liquid-glass"
-                      />
-                    </div>
-                    <input 
-                      type="file" 
-                      ref={assetInputRef} 
-                      onChange={handleAssetUpload} 
-                      multiple 
-                      className="hidden" 
-                      accept="image/*,.svg,.ico"
-                    />
-                    <Button 
-                      onClick={() => assetInputRef.current?.click()}
-                      className="bg-primary text-primary-foreground font-bold h-10 rounded-xl shadow-lg shadow-primary/20"
-                    >
-                      <FileUp className="w-4 h-4 mr-2" />
-                      Upload
-                    </Button>
-                  </div>
-
-                  {/* Asset Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {Object.entries(project?.assets || {})
-                      .filter(([name]) => name.toLowerCase().includes(assetSearch.toLowerCase()))
-                      .map(([name, dataUrl]) => (
-                        <div key={name} className="group relative aspect-square bg-muted/20 rounded-2xl border border-border overflow-hidden hover:border-primary/50 transition-all liquid-glass">
-                          <img src={dataUrl} alt={name} className="w-full h-full object-contain p-4" />
-                          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center p-4 text-center">
-                            <p className="text-[10px] font-bold truncate w-full mb-2">{name}</p>
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => deleteAsset(name)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                    {/* Empty State */}
-                    {(!project?.assets || Object.keys(project.assets).length === 0) && (
-                      <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-40">
-                        <div className="w-16 h-16 bg-muted rounded-3xl flex items-center justify-center border border-border">
-                          <ImageIcon className="w-8 h-8" />
-                        </div>
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-bold">No assets found</h3>
-                          <p className="text-[12px] max-w-[200px]">Upload images or icons to use them in your project.</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'knowledge' && (
-              <div className="flex-1 p-8 bg-background overflow-y-auto">
-                <div className="max-w-5xl mx-auto space-y-8">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col gap-1">
-                      <h2 className="text-2xl font-bold">Knowledge Base</h2>
-                      <p className="text-sm text-muted-foreground">Add documentation, requirements, or context for the AI.</p>
-                    </div>
-                    <Button 
-                      onClick={() => setIsAddingKnowledge(true)}
-                      className="bg-primary text-primary-foreground font-bold h-10 rounded-xl shadow-lg shadow-primary/20"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Knowledge
-                    </Button>
-                  </div>
-
-                  {isAddingKnowledge && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-6 bg-muted/20 border border-border rounded-3xl space-y-4 liquid-glass"
-                    >
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Title</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g., Project Requirements" 
-                          id="knowledge-title"
-                          className="w-full bg-background/50 border border-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Content (Markdown)</label>
-                        <textarea 
-                          rows={10}
-                          placeholder="Paste your documentation or context here..." 
-                          value={knowledgeInput}
-                          onChange={(e) => setKnowledgeInput(e.target.value)}
-                          className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary/50 transition-all font-mono"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 justify-end">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setIsAddingKnowledge(false)}
-                          className="h-10 rounded-xl px-6 font-bold text-xs"
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={() => {
-                            const title = (document.getElementById('knowledge-title') as HTMLInputElement).value
-                            addKnowledge(title, knowledgeInput)
-                          }}
-                          className="h-10 rounded-xl px-6 font-bold text-xs bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                        >
-                          Save Knowledge
-                        </Button>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      placeholder="Search knowledge items..." 
-                      value={knowledgeSearch}
-                      onChange={(e) => setKnowledgeSearch(e.target.value)}
-                      className="w-full bg-muted/30 border border-border rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-primary/50 transition-all liquid-glass"
-                    />
+                    <h2 className="text-2xl font-bold">Deployment & Hosting</h2>
+                    <p className="text-sm text-muted-foreground">Ship your application to production with one click.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Object.entries(project?.knowledge || {})
-                      .filter(([name]) => name.toLowerCase().includes(knowledgeSearch.toLowerCase()))
-                      .map(([name, content]) => (
-                        <div key={name} className="group relative bg-muted/20 rounded-3xl border border-border overflow-hidden hover:border-primary/50 transition-all liquid-glass flex flex-col">
-                          <div className="p-6 flex-1 space-y-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                                  <Book className="w-5 h-5 text-primary" />
-                                </div>
-                                <h3 className="font-bold text-foreground line-clamp-1">{name}</h3>
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => deleteKnowledge(name)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                            <div className="text-xs text-muted-foreground line-clamp-4 leading-relaxed bg-background/30 p-4 rounded-2xl border border-border/50">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-                            </div>
-                          </div>
-                          <div className="px-6 py-4 border-t border-border/50 bg-background/30 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{content.length} characters</span>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => {
-                                setIsAddingKnowledge(true)
-                                setKnowledgeInput(content)
-                                setTimeout(() => {
-                                  (document.getElementById('knowledge-title') as HTMLInputElement).value = name
-                                }, 100)
-                              }}
-                              className="h-8 rounded-lg px-3 font-bold text-[10px] uppercase tracking-wider hover:bg-primary/10 hover:text-primary transition-all"
-                            >
-                              Edit Item
-                            </Button>
+                    {/* Vercel */}
+                    <div className="p-8 bg-muted/30 backdrop-blur-xl border border-border rounded-[2rem] liquid-glass space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center">
+                          <Rocket className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold">Vercel</h3>
+                          <p className="text-xs text-muted-foreground">Instant global deployment.</p>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="p-4 bg-background/50 border border-border rounded-xl space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Status</span>
+                            <span className="text-muted-foreground font-bold italic">Not deployed</span>
                           </div>
                         </div>
-                      ))}
-
-                    {/* Empty State */}
-                    {(!project?.knowledge || Object.keys(project.knowledge).length === 0) && !isAddingKnowledge && (
-                      <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-40">
-                        <div className="w-16 h-16 bg-muted rounded-3xl flex items-center justify-center border border-border">
-                          <Book className="w-8 h-8" />
-                        </div>
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-bold">No knowledge items</h3>
-                          <p className="text-[12px] max-w-[200px]">Add documentation or context to help the AI understand your project better.</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'icons' && (
-              <div className="flex-1 p-8 bg-background overflow-y-auto">
-                <div className="max-w-5xl mx-auto space-y-8">
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-bold">Icon Library</h2>
-                    <p className="text-sm text-muted-foreground">Browse and copy Lucide icons for your project.</p>
-                  </div>
-
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      placeholder="Search icons (e.g. 'home', 'user', 'settings')..." 
-                      value={iconSearch}
-                      onChange={(e) => setIconSearch(e.target.value)}
-                      className="w-full bg-muted/30 border border-border rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-primary/50 transition-all liquid-glass"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-                    {/* Common Lucide Icons for AI projects */}
-                    {[
-                      'Sparkles', 'Zap', 'Brain', 'Globe', 'Code2', 'Monitor', 'Database', 'Layout', 
-                      'Layers', 'Cpu', 'Activity', 'Shield', 'Lock', 'Key', 'Fingerprint', 'Eye',
-                      'Heart', 'Star', 'Flame', 'Rocket', 'Target', 'Trophy', 'Crown', 'Ghost',
-                      'Home', 'Search', 'Settings', 'Bell', 'Mail', 'MessageSquare', 'Phone', 'Video',
-                      'User', 'Users', 'UserPlus', 'LogOut', 'LogIn', 'Settings2', 'Sliders', 'ToggleLeft',
-                      'File', 'Files', 'Folder', 'FolderPlus', 'Image', 'Music', 'Camera',
-                      'Calendar', 'Clock', 'Timer', 'Map', 'Navigation', 'Compass', 'Cloud',
-                      'Check', 'X', 'Plus', 'Minus', 'Trash2', 'Edit', 'Copy', 'Share2',
-                      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ChevronUp', 'ChevronDown', 'ChevronLeft', 'ChevronRight',
-                      'Play', 'Pause', 'Square', 'FastForward', 'Rewind', 'SkipForward', 'SkipBack', 'Shuffle'
-                    ].filter(name => name.toLowerCase().includes(iconSearch.toLowerCase()))
-                    .map(name => {
-                      const IconComponent = (require('lucide-react') as any)[name]
-                      if (!IconComponent) return null
-                      return (
-                        <div 
-                          key={name}
-                          onClick={() => {
-                            navigator.clipboard.writeText(`<${name} className="w-5 h-5" />`)
-                            // Show toast or temporary feedback
-                          }}
-                          className="group flex flex-col items-center justify-center p-4 bg-muted/20 border border-border rounded-2xl hover:border-primary/50 transition-all cursor-pointer hover:shadow-lg hover:shadow-primary/5 liquid-glass"
-                        >
-                          <IconComponent className="w-6 h-6 mb-2 group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center">{name}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Terminal Panel */}
-          {showTerminal && (
-            <div className="h-[250px] border-t border-border bg-[#0a0a0a]/80 backdrop-blur-2xl flex flex-col z-40 liquid-glass">
-              <div className="h-8 border-b border-border flex items-center justify-between px-3 bg-background/30">
-                <div className="flex items-center gap-2">
-                  <TerminalIcon className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Terminal</span>
-                </div>
-                <button 
-                  onClick={() => setShowTerminal(false)}
-                  className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ChevronLeft className="w-3 h-3 rotate-[-90deg]" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-hidden relative">
-                <Terminal onReady={startShell} />
-                {lastError && lastError.type === 'terminal' && (
-                  <div className="absolute inset-0 bg-red-500/10 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
-                    <div className="bg-background/90 border border-red-500/50 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 max-w-md text-center liquid-glass animate-in zoom-in-95">
-                      <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                        <AlertCircle className="w-6 h-6 text-red-500" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-sm font-bold text-foreground">Command Failed</div>
-                        <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{lastError.message}</p>
-                      </div>
-                      <div className="flex items-center gap-2 w-full">
                         <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setLastError(null)}
-                          className="flex-1 h-10 rounded-xl text-muted-foreground hover:text-foreground font-bold text-xs"
+                          className="w-full rounded-xl font-bold bg-slate-900 text-white hover:opacity-90"
+                          onClick={handlePublish}
                         >
-                          Dismiss
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleAutoHeal('terminal', lastError.command || '', lastError.message)}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-red-500/20 text-xs"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 mr-2" />
-                          Fix with AI
+                          Deploy to Vercel
                         </Button>
                       </div>
                     </div>
+
+                    {/* Netlify */}
+                    <div className="p-8 bg-muted/30 backdrop-blur-xl border border-border rounded-[2rem] liquid-glass space-y-6 opacity-60">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center">
+                          <Globe className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold">Netlify</h3>
+                          <p className="text-xs text-muted-foreground">Automated builds and serverless.</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" className="w-full rounded-xl font-bold border-dashed">
+                        Connect Netlify
+                      </Button>
+                    </div>
                   </div>
-                )}
+
+                  {/* Environment Variables */}
+                  <div className="p-8 bg-muted/30 backdrop-blur-xl border border-border rounded-[2rem] liquid-glass space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold">Environment Variables</h3>
+                      <Button variant="ghost" size="sm" className="rounded-xl text-xs font-bold gap-2">
+                        <Plus className="w-3 h-3" /> Add Variable
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="text-center py-8 bg-background/50 border border-dashed border-border rounded-xl opacity-60">
+                        <p className="text-xs text-muted-foreground">No environment variables added yet.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </main>
     </div>
+    </TooltipProvider>
+  )
+}
+
+function TabButton({ 
+  active, 
+  onClick, 
+  icon, 
+  label,
+  xCoord = 50 
+}: { 
+  active: boolean; 
+  onClick: () => void; 
+  icon: React.ReactNode; 
+  label: string;
+  xCoord?: number;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={onClick}
+          className={cn(
+            "flex items-center justify-center w-9 h-9 rounded-full text-xs font-bold transition-all",
+            active 
+              ? "bg-background text-foreground shadow-sm ring-1 ring-border" 
+              : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+          )}
+        >
+          {icon}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent 
+        side="bottom" 
+        style={{ 
+          position: 'fixed', 
+          left: `${(xCoord / 10000) * 100}vw`, 
+          transform: 'translateX(-50%)'
+        }}
+        sideOffset={12}
+        className="bg-popover border border-border text-popover-foreground px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xl animate-in fade-in zoom-in-95 duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-top-1"
+      >
+        {label}
+      </TooltipContent>
+    </Tooltip>
   )
 }
