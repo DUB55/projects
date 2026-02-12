@@ -432,7 +432,7 @@ export default function EditorPage() {
 
   const handleAIRun = async (predefinedCode?: string) => {
     const currentInput = predefinedCode || input
-    if (!currentInput.trim() || !project) return
+    if (!currentInput.trim() || !project || isAIProcessing) return
     
     setInput("")
     setIsAIProcessing(true)
@@ -444,6 +444,13 @@ export default function EditorPage() {
     const isRetry = !!lastMsg?.isError && lastMsg.originalPrompt === currentInput
     const isLastUserSamePrompt = lastMsg?.role === 'user' && lastMsg?.content === currentInput
     
+    // Check if we already have an assistant message responding to this user message
+    // to prevent duplication on re-renders or accidental double-calls
+    if (lastMsg?.role === 'assistant' && !lastMsg.isError && history[history.length - 2]?.content === currentInput) {
+      setIsAIProcessing(false)
+      return
+    }
+
     const updatedWithUserMsg = (isRetry || isLastUserSamePrompt)
       ? project
       : { ...project, chatHistory: [...history, { role: 'user', content: currentInput }] }
@@ -455,6 +462,10 @@ export default function EditorPage() {
     let currentFiles = { ...project.files }
     let modifiedFiles: string[] = []
     
+    // Shared state for recursion
+    let isInsideFile = false
+    let currentFilePath = ""
+
     const runAIRequest = async (promptText: string, isContinuation: boolean = false): Promise<boolean> => {
       try {
         const resp = await fetch("/api/dub5", {
@@ -476,19 +487,19 @@ export default function EditorPage() {
         const reader = resp.body.getReader()
         const decoder = new TextDecoder()
         
-        let rawBuffer = ""
-        let isInsideFile = false
-        let currentFilePath = ""
+        let chunkBuffer = "" // For resolving partial tags across chunks
         
         while (true) {
           const { value, done } = await reader.read()
           if (done) break
           
           const chunk = decoder.decode(value, { stream: true })
-          rawBuffer += chunk
+          chunkBuffer += chunk
           
-          // Process chunks for SSE events
-          const lines = chunk.split(/\r?\n/)
+          const lines = chunkBuffer.split(/\r?\n/)
+          // Keep the last partial line in the buffer
+          chunkBuffer = lines.pop() || ""
+          
           for (const line of lines) {
             if (!line.startsWith("data:")) continue
             const jsonPart = line.slice(5).trim()
@@ -501,14 +512,11 @@ export default function EditorPage() {
 
               totalAssistantText += content
 
-              // Real-time file and narrative parsing
-              // We use a simplified state machine to decide what goes to chat vs files
               let remaining = content
               while (remaining.length > 0) {
                 if (!isInsideFile) {
                   const beginIdx = remaining.indexOf("BEGIN_FILE:")
                   if (beginIdx !== -1) {
-                    // Narrative before the tag
                     totalNarrativeText += remaining.slice(0, beginIdx)
                     setStreamingText(totalNarrativeText)
                     
@@ -517,13 +525,15 @@ export default function EditorPage() {
                     if (lineEnd !== -1) {
                       currentFilePath = afterBegin.slice(0, lineEnd).trim()
                       isInsideFile = true
-                      // Initialize or clear file
-                      currentFiles[currentFilePath] = ""
+                      // Only clear file if it's the start of a fresh response, 
+                      // not a continuation of an already open file.
+                      if (!isContinuation || !currentFiles[currentFilePath]) {
+                        currentFiles[currentFilePath] = ""
+                      }
                       if (!modifiedFiles.includes(currentFilePath)) modifiedFiles.push(currentFilePath)
                       remaining = afterBegin.slice(lineEnd + 1)
                     } else {
-                      // Tag is incomplete in this chunk, wait for next
-                      remaining = ""
+                      remaining = "" 
                     }
                   } else {
                     totalNarrativeText += remaining
@@ -533,34 +543,29 @@ export default function EditorPage() {
                 } else {
                   const endIdx = remaining.indexOf("END_FILE")
                   if (endIdx !== -1) {
-                    // Content before the end tag
                     currentFiles[currentFilePath] += remaining.slice(0, endIdx)
                     isInsideFile = false
                     
-                    // Trigger state update for real-time preview/editor
                     setProject(prev => prev ? { ...prev, files: { ...currentFiles } } : null)
                     if (currentFilePath.endsWith('.html')) setActiveFile(currentFilePath)
                     
                     remaining = remaining.slice(endIdx + 8)
                   } else {
                     currentFiles[currentFilePath] += remaining
-                    // Progressive update for file content
                     setProject(prev => prev ? { ...prev, files: { ...currentFiles } } : null)
                     remaining = ""
                   }
                 }
               }
             } catch (e) {
-              console.log("[AI] SSE Parse Error", e)
+              // Ignore partial JSON
             }
           }
         }
 
-        // After stream ends, check for truncation
         const hasUnclosedFile = isInsideFile || (totalAssistantText.includes("BEGIN_FILE:") && !totalAssistantText.endsWith("END_FILE") && totalAssistantText.lastIndexOf("BEGIN_FILE:") > totalAssistantText.lastIndexOf("END_FILE"))
         
         if (hasUnclosedFile) {
-          console.log("[AI] Response truncated, requesting continuation...")
           return await runAIRequest("Continue EXACTLY where you left off/stopped", true)
         }
 
@@ -582,32 +587,53 @@ export default function EditorPage() {
         content: totalNarrativeText.trim()
       }
 
-      const nextChat = (() => {
-        const h = updatedWithUserMsg.chatHistory || []
-        if (isRetry && h.length > 0 && h[h.length - 1].isError && h[h.length - 1].originalPrompt === currentInput) {
-          return [...h.slice(0, -1), successMsg]
+      setProject(prev => {
+        if (!prev) return null
+        const h = prev.chatHistory || []
+        // Final guard against repetition: only add if the last message is NOT already this assistant response
+        if (h.length > 0 && h[h.length - 1].role === 'assistant' && h[h.length - 1].content === successMsg.content) {
+          return prev
         }
-        return [...h, successMsg]
-      })()
+        
+        const nextChat = (() => {
+          if (isRetry && h.length > 0 && h[h.length - 1].isError && h[h.length - 1].originalPrompt === currentInput) {
+            return [...h.slice(0, -1), successMsg]
+          }
+          return [...h, successMsg]
+        })()
 
-      const newHistoryItem = {
-        id: Math.random().toString(36).substr(2, 9),
-        timestamp: Date.now(),
-        description: currentInput || "AI update",
-        filesModified: modifiedFiles,
-        filesSnapshot: { ...project.files }
-      }
+        const newHistoryItem = {
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: Date.now(),
+          description: currentInput || "AI update",
+          filesModified: modifiedFiles,
+          filesSnapshot: { ...prev.files }
+        }
 
-      const finalProject = {
+        return {
+          ...prev,
+          files: currentFiles,
+          history: [newHistoryItem, ...(prev.history || [])],
+          chatHistory: nextChat,
+          lastModified: Date.now()
+        }
+      })
+
+      // We need to get the final project state to save it, but setProject is async.
+      // For now, we rely on the state update above. We'll add a save trigger in a useEffect elsewhere or just save the final object.
+      const finalToSave = {
         ...updatedWithUserMsg,
         files: currentFiles,
-        history: [newHistoryItem, ...(updatedWithUserMsg.history || [])],
-        chatHistory: nextChat,
+        chatHistory: (() => {
+          const h = updatedWithUserMsg.chatHistory || []
+          if (isRetry && h.length > 0 && h[h.length - 1].isError && h[h.length - 1].originalPrompt === currentInput) {
+            return [...h.slice(0, -1), successMsg]
+          }
+          return [...h, successMsg]
+        })(),
         lastModified: Date.now()
       }
-
-      setProject(finalProject)
-      await storage.saveProject(finalProject)
+      await storage.saveProject(finalToSave)
       handleRefreshPreview()
     } catch (err) {
       // Professional error handling
@@ -1311,8 +1337,8 @@ ${new Date().toLocaleString()}
       {/* Main Content */}
       <main className="flex-1 flex overflow-hidden relative">
         {/* Sidebar Chat */}
-        <div className="w-[30%] border-r border-border bg-background/50 backdrop-blur-xl flex flex-col z-40">
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="w-[30%] border-r border-border bg-background/50 backdrop-blur-xl flex flex-col z-40 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-none">
             {project?.chatHistory?.map((msg, i) => (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
