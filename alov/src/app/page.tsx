@@ -153,6 +153,7 @@ export default function HomePage() {
     setBusy(true)
     console.log("[Landing] StartProject", { prompt: trimmed })
     handleStartProject(trimmed)
+    setInput("")
   }
 
   const handleSelectNode = async (node: TreeNode) => {

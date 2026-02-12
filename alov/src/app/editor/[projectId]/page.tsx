@@ -125,6 +125,130 @@ export default function EditorPage() {
   const [suggestions, setSuggestions] = useState<{ label: string, icon: React.ReactNode, prompt: string }[]>([])
   const [examplePrompt, setExamplePrompt] = useState("Build a modern landing page for a SaaS product.")
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const [streamingText, setStreamingText] = useState("")
+  const [personality, setPersonality] = useState<string>("coder")
+
+  // Sync personality with localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('dub5_personality')
+    if (saved) {
+      setPersonality(saved)
+    } else {
+      localStorage.setItem('dub5_personality', 'coder')
+      setPersonality('coder')
+    }
+  }, [])
+
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  const mdToHtml = (s: string) => {
+    const lines = s.split(/\r?\n/)
+    let html = ""
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      if (/^\s*\|.*\|\s*$/.test(line)) {
+        const rows: string[][] = []
+        while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+          const cells = lines[i]
+            .trim()
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map(c => escapeHtml(c.trim()))
+          rows.push(cells)
+          i++
+        }
+        if (rows.length > 0) {
+          const head = rows[0]
+          const body = rows.slice(1)
+          html += "<table class=\"min-w-full text-sm\"><thead><tr>"
+          head.forEach(c => (html += `<th class="px-3 py-2 text-left font-bold">${c}</th>`))
+          html += "</tr></thead><tbody>"
+          body.forEach(r => {
+            html += "<tr>"
+            r.forEach(c => (html += `<td class="px-3 py-2">${c}</td>`))
+            html += "</tr>"
+          })
+          html += "</tbody></table>"
+        }
+        continue
+      }
+      if (/^#{1,6}\s+/.test(line)) {
+        const level = (line.match(/^#{1,6}/)![0].length)
+        const content = escapeHtml(line.replace(/^#{1,6}\s+/, ""))
+        html += `<h${level} class="font-bold mt-2 mb-1">${content}</h${level}>`
+        i++
+        continue
+      }
+      if (/^\s*[-*]\s+/.test(line)) {
+        html += "<ul class=\"list-disc ml-5\">"
+        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+          const item = escapeHtml(lines[i].replace(/^\s*[-*]\s+/, ""))
+          html += `<li>${item}</li>`
+          i++
+        }
+        html += "</ul>"
+        continue
+      }
+      const paragraph = escapeHtml(line)
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/`([^`]+?)`/g, "<code class=\"px-1 py-0.5 bg-muted rounded\">$1</code>")
+      html += `<p class="mb-2">${paragraph}</p>`
+      i++
+    }
+    return html
+  }
+
+  const removeCodeBlocks = (s: string) => {
+    // Remove structured blocks BEGIN_FILE: ... END_FILE
+    return s.replace(/BEGIN_FILE:[\s\S]*?END_FILE/g, "").trim()
+  }
+
+  const extractCodeBlocks = (s: string) => {
+    const blocks: { path: string; code: string }[] = []
+    const re = /BEGIN_FILE:\s*([^\r\n]+)\r?\n([\s\S]*?)END_FILE/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(s))) {
+      blocks.push({ path: m[1].trim(), code: m[2].trim() })
+    }
+    return blocks
+  }
+  const defaultPathForLang = (lang: string) => {
+    if (lang === "html") return "index.html"
+    if (lang === "css") return "styles.css"
+    if (lang === "js" || lang === "javascript") return "script.js"
+    if (lang === "ts") return "generated.ts"
+    if (lang === "jsx") return "components/GeneratedComponent.jsx"
+    if (lang === "tsx") return "components/GeneratedComponent.tsx"
+    if (lang === "json") return "data.json"
+    if (lang === "md" || lang === "markdown") return "NOTES.md"
+    return "generated.txt"
+  }
+  const findFilePathHint = (text: string, lang: string) => {
+    const hintRe = /(filename|file|path)\s*:\s*([^\s]+)\b/gi
+    const matches: string[] = []
+    let m: RegExpExecArray | null
+    while ((m = hintRe.exec(text))) {
+      matches.push(m[2])
+    }
+    const extMap: Record<string, string[]> = {
+      html: [".html", ".htm"],
+      css: [".css"],
+      js: [".js", ".mjs", ".cjs"],
+      ts: [".ts"],
+      jsx: [".jsx"],
+      tsx: [".tsx"],
+      json: [".json"],
+      md: [".md", ".markdown"]
+    }
+    const exts = extMap[lang] || []
+    for (const p of matches) {
+      if (exts.length === 0 || exts.some(e => p.toLowerCase().endsWith(e))) return p
+    }
+    return ""
+  }
 
   // Pool of 60 unique suggestions
   const suggestionPool = [
@@ -288,7 +412,7 @@ export default function EditorPage() {
   // Auto-scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [project?.chatHistory, isAIProcessing])
+  }, [project?.chatHistory, isAIProcessing, streamingText])
 
   // Save settings when they change
   const saveSettings = async () => {
@@ -310,116 +434,154 @@ export default function EditorPage() {
     const currentInput = predefinedCode || input
     if (!currentInput.trim() || !project) return
     
+    setInput("")
     setIsAIProcessing(true)
     setAiProgress({ status: "Processing request...", files: [] })
+    setStreamingText("")
     
     const history = project.chatHistory || []
     const lastMsg = history[history.length - 1]
     const isRetry = !!lastMsg?.isError && lastMsg.originalPrompt === currentInput
     const isLastUserSamePrompt = lastMsg?.role === 'user' && lastMsg?.content === currentInput
+    
     const updatedWithUserMsg = (isRetry || isLastUserSamePrompt)
       ? project
       : { ...project, chatHistory: [...history, { role: 'user', content: currentInput }] }
-    setProject(updatedWithUserMsg)
-    console.log("[AI] Start", { currentInput, isRetry, isLastUserSamePrompt, chatCount: (updatedWithUserMsg.chatHistory || []).length })
     
-    try {
-      // Analyze and plan
-      await new Promise(r => setTimeout(r, 1200)) // Slightly longer to feel more "real"
-      
-      const prompt = currentInput.toLowerCase()
-      const updatedFiles = { ...project.files }
-      let modifiedFiles: string[] = []
-      let createdFiles: string[] = []
-      console.log("[AI] Connected", { promptSnippet: prompt.slice(0, 80), fileCount: Object.keys(updatedFiles).length })
+    setProject(updatedWithUserMsg)
+    
+    let totalAssistantText = ""
+    let totalNarrativeText = ""
+    let currentFiles = { ...project.files }
+    let modifiedFiles: string[] = []
+    
+    const runAIRequest = async (promptText: string, isContinuation: boolean = false): Promise<boolean> => {
+      try {
+        const resp = await fetch("/api/dub5", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            input: promptText, 
+            task: "chat", 
+            personality: personality,
+            params: {}, 
+            history: (updatedWithUserMsg.chatHistory || []).slice(Math.max(0, (updatedWithUserMsg.chatHistory || []).length - 8))
+          })
+        })
 
-      // Simple AI logic simulation
-      if (prompt.includes("delete") || prompt.includes("remove")) {
-        const fileToDelete = Object.keys(updatedFiles).find(f => prompt.includes(f.toLowerCase()))
-        if (fileToDelete) {
-          delete updatedFiles[fileToDelete]
-          modifiedFiles = [fileToDelete]
-          if (activeFile === fileToDelete) setActiveFile(null)
-          console.log("[AI] Delete", { fileToDelete })
-        } else {
-          throw new Error("Target file for deletion not found.")
+        if (!resp.ok || !resp.body) {
+          throw new Error(resp.statusText || "Connection failed")
         }
-      } else if (prompt.includes("create") || prompt.includes("add file")) {
-        const match = prompt.match(/(?:create|add file)\s+([a-zA-Z0-9._/-]+)/)
-        const newFileName = match ? match[1] : "index.html"
+
+        const reader = resp.body.getReader()
+        const decoder = new TextDecoder()
         
-        // If it's a "create index.html" but it already exists, maybe treat as edit? 
-        // For now, let's just fail if we can't figure out what to create
-        if (!match && !prompt.includes("index.html") && !prompt.includes("page")) {
-          throw new Error("Unsure what file to create.")
+        let rawBuffer = ""
+        let isInsideFile = false
+        let currentFilePath = ""
+        
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          
+          const chunk = decoder.decode(value, { stream: true })
+          rawBuffer += chunk
+          
+          // Process chunks for SSE events
+          const lines = chunk.split(/\r?\n/)
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue
+            const jsonPart = line.slice(5).trim()
+            if (!jsonPart || jsonPart === "[DONE]") continue
+            
+            try {
+              const obj = JSON.parse(jsonPart)
+              const content = obj.content || ""
+              if (!content) continue
+
+              totalAssistantText += content
+
+              // Real-time file and narrative parsing
+              // We use a simplified state machine to decide what goes to chat vs files
+              let remaining = content
+              while (remaining.length > 0) {
+                if (!isInsideFile) {
+                  const beginIdx = remaining.indexOf("BEGIN_FILE:")
+                  if (beginIdx !== -1) {
+                    // Narrative before the tag
+                    totalNarrativeText += remaining.slice(0, beginIdx)
+                    setStreamingText(totalNarrativeText)
+                    
+                    const afterBegin = remaining.slice(beginIdx + 11)
+                    const lineEnd = afterBegin.indexOf("\n")
+                    if (lineEnd !== -1) {
+                      currentFilePath = afterBegin.slice(0, lineEnd).trim()
+                      isInsideFile = true
+                      // Initialize or clear file
+                      currentFiles[currentFilePath] = ""
+                      if (!modifiedFiles.includes(currentFilePath)) modifiedFiles.push(currentFilePath)
+                      remaining = afterBegin.slice(lineEnd + 1)
+                    } else {
+                      // Tag is incomplete in this chunk, wait for next
+                      remaining = ""
+                    }
+                  } else {
+                    totalNarrativeText += remaining
+                    setStreamingText(totalNarrativeText)
+                    remaining = ""
+                  }
+                } else {
+                  const endIdx = remaining.indexOf("END_FILE")
+                  if (endIdx !== -1) {
+                    // Content before the end tag
+                    currentFiles[currentFilePath] += remaining.slice(0, endIdx)
+                    isInsideFile = false
+                    
+                    // Trigger state update for real-time preview/editor
+                    setProject(prev => prev ? { ...prev, files: { ...currentFiles } } : null)
+                    if (currentFilePath.endsWith('.html')) setActiveFile(currentFilePath)
+                    
+                    remaining = remaining.slice(endIdx + 8)
+                  } else {
+                    currentFiles[currentFilePath] += remaining
+                    // Progressive update for file content
+                    setProject(prev => prev ? { ...prev, files: { ...currentFiles } } : null)
+                    remaining = ""
+                  }
+                }
+              }
+            } catch (e) {
+              console.log("[AI] SSE Parse Error", e)
+            }
+          }
         }
 
-        updatedFiles[newFileName] = newFileName.endsWith('.html') 
-          ? `<!DOCTYPE html>\n<html>\n<head>\n  <title>${newFileName}</title>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-50 min-h-screen flex items-center justify-center font-sans text-slate-900">\n  <div class="text-center space-y-4 p-8 bg-white rounded-3xl shadow-xl border border-slate-200">\n    <h1 class="text-4xl font-black tracking-tight">${newFileName}</h1>\n    <p class="text-slate-500">Ready for development.</p>\n  </div>\n</body>\n</html>`
-          : `export default function Component() {\n  return <div>File: ${newFileName}</div>\n}`
-        modifiedFiles = [newFileName]
-        createdFiles = [newFileName]
-        setActiveFile(newFileName)
-        console.log("[AI] Create", { newFileName })
-      } else {
-        // Edit logic
-        let targetFile = Object.keys(updatedFiles).find(f => prompt.includes(f.toLowerCase())) || activeFile
-        if (!targetFile) {
-          if (Object.keys(updatedFiles).length === 0) {
-            const newFileName = "index.html"
-            updatedFiles[newFileName] = `<!DOCTYPE html>\n<html>\n<head>\n  <title>${newFileName}</title>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-50 min-h-screen flex items-center justify-center font-sans text-slate-900">\n  <div class="text-center space-y-4 p-8 bg-white rounded-3xl shadow-xl border border-slate-200">\n    <h1 class="text-4xl font-black tracking-tight">${newFileName}</h1>\n    <p class="text-slate-500">Ready for development.</p>\n  </div>\n</body>\n</html>`
-            modifiedFiles = [newFileName]
-            createdFiles = [newFileName]
-            setActiveFile(newFileName)
-            console.log("[AI] Bootstrap", { newFileName })
-          } else {
-            const firstHtml = Object.keys(updatedFiles).find(f => f.endsWith('.html'))
-            targetFile = firstHtml || Object.keys(updatedFiles)[0]
-            console.log("[AI] TargetResolved", { targetFile })
-          }
+        // After stream ends, check for truncation
+        const hasUnclosedFile = isInsideFile || (totalAssistantText.includes("BEGIN_FILE:") && !totalAssistantText.endsWith("END_FILE") && totalAssistantText.lastIndexOf("BEGIN_FILE:") > totalAssistantText.lastIndexOf("END_FILE"))
+        
+        if (hasUnclosedFile) {
+          console.log("[AI] Response truncated, requesting continuation...")
+          return await runAIRequest("Continue EXACTLY where you left off/stopped", true)
         }
-        if (modifiedFiles.length === 0 && targetFile) {
-          modifiedFiles = [targetFile]
-          if (targetFile.endsWith('.html')) {
-            if (updatedFiles[targetFile].includes('</body>')) {
-              updatedFiles[targetFile] = updatedFiles[targetFile].replace('</body>', `  <!-- AI Update: ${new Date().toLocaleTimeString()} -->\n</body>`)
-            } else {
-              updatedFiles[targetFile] += `\n<!-- AI Update -->`
-            }
-            console.log("[AI] UpdateHTML", { targetFile })
-          } else {
-            updatedFiles[targetFile] = `// AI Updated at ${new Date().toLocaleTimeString()}\n${updatedFiles[targetFile]}`
-            console.log("[AI] UpdateCode", { targetFile })
-          }
-        }
+
+        return true
+      } catch (err) {
+        console.error("AI Request Error:", err)
+        throw err
       }
+    }
+
+    try {
+      await runAIRequest(currentInput)
       
-      if (modifiedFiles.length === 0) {
-        console.log("[AI] NoChanges")
-        throw new Error("No changes detected.")
-      }
-      
-      const newHistoryItem = {
-        id: Math.random().toString(36).substr(2, 9),
-        timestamp: Date.now(),
-        description: currentInput || "AI update",
-        filesModified: modifiedFiles,
-        filesSnapshot: { ...project.files }
-      }
-      
-      const updatedOnly = modifiedFiles.filter(f => !createdFiles.includes(f))
-      const createdPart = createdFiles.length 
-        ? `Created ${createdFiles.length} file${createdFiles.length > 1 ? 's' : ''}: ${createdFiles.join(', ')}`
-        : ""
-      const updatedPart = updatedOnly.length 
-        ? `Updated ${updatedOnly.length} file${updatedOnly.length > 1 ? 's' : ''}: ${updatedOnly.join(', ')}`
-        : ""
-      const summaryText = [createdPart, updatedPart].filter(Boolean).join(' · ')
+      const combinedText = totalAssistantText.trim()
+      if (!combinedText) throw new Error("AI response empty.")
+
       const successMsg: ChatMessage = {
         role: 'assistant',
-        content: summaryText || `Applied changes`
+        content: totalNarrativeText.trim()
       }
-      console.log("[AI] GeneratedResponse", { summaryText, createdFiles, updatedOnly })
+
       const nextChat = (() => {
         const h = updatedWithUserMsg.chatHistory || []
         if (isRetry && h.length > 0 && h[h.length - 1].isError && h[h.length - 1].originalPrompt === currentInput) {
@@ -427,24 +589,28 @@ export default function EditorPage() {
         }
         return [...h, successMsg]
       })()
-      const updatedProject = {
+
+      const newHistoryItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        description: currentInput || "AI update",
+        filesModified: modifiedFiles,
+        filesSnapshot: { ...project.files }
+      }
+
+      const finalProject = {
         ...updatedWithUserMsg,
-        files: updatedFiles,
+        files: currentFiles,
         history: [newHistoryItem, ...(updatedWithUserMsg.history || [])],
         chatHistory: nextChat,
         lastModified: Date.now()
       }
-      
-      // ONLY save and update state if we got here (no errors thrown)
-      setProject(updatedProject)
-      await storage.saveProject(updatedProject)
-      console.log("[AI] DeliveredResponse", { chatCount: (updatedProject.chatHistory || []).length, last: updatedProject.chatHistory?.[updatedProject.chatHistory.length - 1] })
-      
-      setInput("")
+
+      setProject(finalProject)
+      await storage.saveProject(finalProject)
       handleRefreshPreview()
     } catch (err) {
-      console.error("AI Processing Error:", err)
-      // Show professional error message
+      // Professional error handling
       const errorMsg: ChatMessage = {
         role: 'assistant',
         content: "I encountered an unexpected issue while processing your request. Would you like to try again?",
@@ -453,22 +619,17 @@ export default function EditorPage() {
       }
       const prevChat = updatedWithUserMsg.chatHistory || []
       const last = prevChat[prevChat.length - 1]
-      const sameErr = !!last?.isError && last.content === errorMsg.content && last.originalPrompt === currentInput
       const nextChat = isRetry && !!last?.isError && last.originalPrompt === currentInput
         ? [...prevChat.slice(0, -1), errorMsg]
-        : (sameErr ? prevChat : [...prevChat, errorMsg])
-      const errorProject = {
-        ...updatedWithUserMsg,
-        chatHistory: nextChat
-      }
+        : [...prevChat, errorMsg]
+      
+      const errorProject = { ...updatedWithUserMsg, chatHistory: nextChat }
       setProject(errorProject)
-      // Save the chat history even on error so the user sees the error message next time they open the project
       await storage.saveProject(errorProject)
-      console.log("[AI] ErrorDelivered", { chatCount: (errorProject.chatHistory || []).length, last: errorProject.chatHistory?.[errorProject.chatHistory.length - 1], sameErr, isRetry })
     } finally {
       setIsAIProcessing(false)
       setAiProgress({ status: "", files: [] })
-      console.log("[AI] End")
+      setStreamingText("")
     }
   }
 
@@ -1170,7 +1331,7 @@ ${new Date().toLocaleString()}
                       ? "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-tl-none shadow-sm"
                       : "text-foreground"
                 )}>
-                  {msg.content}
+                  <div dangerouslySetInnerHTML={{ __html: mdToHtml(msg.content || "") }} />
                   {msg.isError && msg.originalPrompt && (
                     <div className="mt-4 pt-4 border-t border-red-500/10 flex items-center justify-between gap-4">
                       <p className="text-[10px] font-medium opacity-70">Would you like to try again?</p>
@@ -1191,7 +1352,16 @@ ${new Date().toLocaleString()}
                 </div>
               </motion.div>
             ))}
-            {isAIProcessing && (
+            {!!streamingText && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-2 items-start"
+              >
+                <div className="max-w-[90%] p-4 rounded-[1.25rem] text-sm leading-relaxed transition-all text-foreground" dangerouslySetInnerHTML={{ __html: mdToHtml(streamingText) }} />
+              </motion.div>
+            )}
+            {isAIProcessing && !streamingText && (
               <div className="flex flex-col gap-2 items-start">
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-4 h-4 text-primary animate-spin" />
@@ -1207,10 +1377,9 @@ ${new Date().toLocaleString()}
               {suggestions.map((btn) => (
                 <button
                   key={btn.label}
-                  onClick={() => {
-                    setInput(btn.prompt)
-                    setTimeout(() => handleAIRun(), 100)
-                  }}
+                      onClick={() => {
+                        handleAIRun(btn.prompt)
+                      }}
                   className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all liquid-glass"
                 >
                   {btn.icon}
